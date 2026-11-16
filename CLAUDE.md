@@ -14,6 +14,10 @@ Follow `docs/browser-testing.md`.
 
 GitHub Issues on the fork `mntropy/caseys-dynasty-dashboard` (PRs still target `allthebigideas-bit`). See `docs/agents/issue-tracker.md`.
 
+### Triage labels
+
+The six default roles, each label named after its role (`needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`, `parked`). See `docs/agents/triage-labels.md`.
+
 ### Domain docs
 
 Single-context: `GLOSSARY.md` and `docs/adr/` at the root. See `docs/agents/domain.md`.
