@@ -3084,7 +3084,7 @@ function tradeSummaryPoster() {
       { label: 'Roster', cols: [{ key: 'value', label: 'Team value', sub: 'KTC', w: 120 }] },
     ],
     rows: rows.map((r) => ({
-      name: r.name, sub: r.t.teamName && r.t.teamName !== r.name ? r.t.teamName : '', avatar: avatarUrl(r.t), isMe: r.isMe,
+      name: r.name, sub: r.t.teamName && r.t.teamName.toLowerCase() !== r.name.toLowerCase() ? r.t.teamName : '', avatar: avatarUrl(r.t), isMe: r.isMe,
       cells: {
         trades: { text: String(r.trades) }, curNow: netC(r.curNow, r.trades > 0), curPts: ptsC(r.curPts, r.trades > 0),
         histTrades: { text: String(r.histTrades) }, oldNow: netC(r.oldNow, r.histTrades > 0), oldPts: ptsC(r.oldPts, r.histTrades > 0),
@@ -3103,60 +3103,89 @@ function tradeSummaryPoster() {
 function seasonPoster() {
   const m = S.model;
   const pN = m.league.playoffTeams || 6;
+  const regEnd = m.league.regEnd;
+  const weeks = Array.from({ length: regEnd }, (_, i) => i + 1);
   const hasBye = m.teams[0].byeOdds != null;
-  const sorted = [...m.teams].sort((a, b) => b.w - a.w || b.pf - a.pf);
+  const standing = Object.fromEntries([...m.teams].sort((a, b) => b.w - a.w || b.pf - a.pf).map((t, i) => [t.rid, i + 1]));
+  // Same order as the table on screen when it's sorted by finish; otherwise standings.
+  const key = ['playoffOdds', 'projW'].includes(S.ui.season.key) && S.ui.season.dir < 0 ? S.ui.season.key : 'standing';
+  const projWOf = (t) => (t.expWins != null ? t.expWins : t.w);
+  const sorted = [...m.teams].sort((a, b) => key === 'playoffOdds' ? (b.playoffOdds ?? -1) - (a.playoffOdds ?? -1) || standing[a.rid] - standing[b.rid] : key === 'projW' ? projWOf(b) - projWOf(a) : standing[a.rid] - standing[b.rid]);
   const streak = (t) => { const r = t.results || []; if (!r.length) return ''; const last = r[r.length - 1].res; let c = 0; for (let i = r.length - 1; i >= 0 && r[i].res === last; i--) c++; return `${last}${c}`; };
   const oddsC = (v, hero) => (v == null || v < 0 ? { text: '—', color: POSTER.muted } : { text: pct(v), bar: v, color: v >= 0.75 ? '#2fc66b' : v <= 0.25 ? '#f05a5a' : hero ? '#f2b632' : '#f2a541' });
-  const byTop = [...m.teams].filter((t) => t.topOdds != null || t.seedOdds).sort((a, b) => (b.seedOdds ? b.seedOdds[0] : 0) - (a.seedOdds ? a.seedOdds[0] : 0))[0];
+  const weekCell = (t, w) => {
+    const r = (t.results || []).find((x) => x.w === w);
+    if (r) return { wl: r.res };
+    const up = (t.remaining || []).find((x) => x.w === w);
+    if (!up) return { wl: '' };
+    const o = team(up.rid);
+    const p0 = o ? normCdf((t.strength - o.strength) / Math.sqrt((t.sd || 22) ** 2 + (o.sd || 22) ** 2)) : null;
+    return { wl: p0 == null ? '' : p0 >= 0.5 ? 'W' : 'L', proj: true, p: p0 == null ? null : Math.round(p0 * 100) };
+  };
+  const byTop = [...m.teams].filter((t) => t.seedOdds).sort((a, b) => b.seedOdds[0] - a.seedOdds[0])[0];
   const pfLead = [...m.teams].sort((a, b) => b.pf - a.pf)[0];
   const unlucky = [...m.teams].sort((a, b) => (b.pa || 0) - (a.pa || 0))[0];
-  const last = sorted[sorted.length - 1];
+  const last = [...m.teams].sort((a, b) => standing[b.rid] - standing[a.rid])[0];
   const awards = [
-    byTop && byTop.seedOdds && { label: 'Top seed favourite', name: byTop.name, avatar: avatarUrl(byTop), stat: `${pct(byTop.seedOdds[0])} to finish 1st` },
+    byTop && { label: 'Top seed favourite', name: byTop.name, avatar: avatarUrl(byTop), stat: `${pct(byTop.seedOdds[0])} to finish 1st` },
     pfLead && { label: 'Points leader', name: pfLead.name, avatar: avatarUrl(pfLead), stat: `${Math.round(pfLead.pf)} points for` },
     unlucky && { label: 'Toughest luck', name: unlucky.name, avatar: avatarUrl(unlucky), stat: `${Math.round(unlucky.pa || 0)} points against` },
     last && { label: 'Lottery watch', gloom: true, name: last.name, avatar: avatarUrl(last), stat: `${last.w}-${last.l} · ${pct(last.playoffOdds)} playoff odds` },
   ].filter(Boolean);
-  const projCols = [
-    { key: 'proj', label: 'Proj. record', sub: 'rest of season', w: 140, hero: true },
-    { key: 'odds', label: 'Playoffs', sub: 'chance', w: 190, hero: true },
-    ...(hasBye ? [{ key: 'bye', label: 'Bye', sub: 'top 2', w: 150 }] : []),
-    { key: 'top', label: '#1 seed', sub: 'chance', w: 150 },
-  ];
+  const wkW = 44;
   return {
+    width: 2800,
     file: `caseys-season-table-${fileStamp()}.png`,
     title: 'Season table', eyebrow: leagueName(),
-    subtitle: `Standings after week ${Math.max(0, m.league.week - 1)} · top ${pN} make the playoffs`,
+    subtitle: `${m.teams.length} teams · top ${pN} make the playoffs${hasBye ? ' · top 2 get a bye' : ''} · regular season ends week ${regEnd}`,
     awards,
     groups: [
-      { label: '', cols: [{ key: '#', label: '#', w: 70, align: 'center' }, { key: 'name', label: 'Team', align: 'left' }] },
-      { label: 'Record', cols: [{ key: 'rec', label: 'W-L', w: 90 }, { key: 'streak', label: 'Streak', w: 84 }] },
+      { label: '', cols: [{ key: '#', label: '#', w: 62, align: 'center' }, { key: 'name', label: 'Team', align: 'left' }, { key: 'rec', label: 'Record', sub: 'streak', w: 104 }] },
+      { label: 'Results by week', cols: weeks.map((w) => ({ key: `w${w}`, label: String(w), w: wkW, align: 'center' })) },
       { label: 'Scoring', cols: [
-        { key: 'pf', label: 'PF', sub: 'points for', w: 96 }, { key: 'pa', label: 'PA', sub: 'against', w: 96 },
-        { key: 'maxpf', label: 'Max PF', sub: 'best lineup', w: 106 }, { key: 'ap', label: 'All-play', sub: 'vs everyone', w: 110 },
+        { key: 'pf', label: 'PF', sub: 'points for', w: 92 }, { key: 'pa', label: 'PA', sub: 'against', w: 92 },
+        { key: 'maxpf', label: 'Max PF', sub: 'best lineup', w: 104 }, { key: 'eff', label: 'Eff.', sub: 'of max', w: 78 },
+        { key: 'ap', label: 'All-play', sub: 'vs everyone', w: 108 },
       ] },
-      { label: 'Projection', hero: true, cols: projCols },
+      { label: 'Strength', cols: [
+        { key: 'best', label: 'Proj. max PF/wk', sub: 'and rank', w: 150 },
+        { key: 'sos', label: 'Sched.', sub: '1st = hardest', w: 112 },
+      ] },
+      { label: 'Projection', hero: true, cols: [
+        { key: 'proj', label: 'Proj. record', sub: 'rest of season', w: 140, hero: true },
+        { key: 'seed', label: 'Avg seed', w: 92 },
+        { key: 'odds', label: 'Playoffs', sub: 'chance', w: 180, hero: true },
+        ...(hasBye ? [{ key: 'bye', label: 'Bye', sub: 'top 2', w: 150 }] : []),
+        { key: 'top', label: '#1 seed', sub: 'chance', w: 150 },
+      ] },
     ],
     rows: sorted.map((t, i) => {
       const games = t.w + t.l + (t.t || 0), left = t.remaining ? t.remaining.length : 0;
-      const projW = t.expWins != null ? t.expWins : t.w;
+      const projW = projWOf(t);
       const sk = streak(t);
+      const avgSeed = t.seedOdds ? t.seedOdds.reduce((s2, p0, j) => s2 + p0 * (j + 1), 0) : null;
+      const cells = {
+        rec: { text: `${t.w}-${t.l}${t.t ? '-' + t.t : ''}`, bold: true, sub: sk || ' ', subColor: sk.startsWith('W') ? POSTER.good : sk.startsWith('L') ? POSTER.bad : POSTER.muted },
+        pf: { text: String(Math.round(t.pf)) }, pa: { text: String(Math.round(t.pa || 0)), color: '#c4b3e6' },
+        maxpf: { text: t.maxPf ? String(Math.round(t.maxPf)) : '—', color: '#c4b3e6' },
+        eff: { text: t.eff != null ? pct(t.eff) : '—', color: '#c4b3e6' },
+        ap: { text: t.allPlay ? `${t.allPlay.w}-${t.allPlay.l}` : '—', color: '#c4b3e6' },
+        best: { text: t.bestNow ? t.bestNow.toFixed(1) : '—', sub: t.strengthRank ? ordinal(t.strengthRank) : '' },
+        sos: { text: t.sosRank ? ordinal(t.sosRank) : '—', sub: `${left} left` },
+        proj: { text: `${projW.toFixed(1)}-${(games + left - projW).toFixed(1)}`, bold: true },
+        seed: { text: avgSeed ? avgSeed.toFixed(1) : '—' },
+        odds: oddsC(t.playoffOdds, true), bye: oddsC(t.byeOdds), top: oddsC(t.seedOdds ? t.seedOdds[0] : null),
+      };
+      for (const w of weeks) cells[`w${w}`] = weekCell(t, w);
       return {
-        name: t.name, sub: t.teamName && t.teamName !== t.name ? t.teamName : '', avatar: avatarUrl(t), isMe: t.isMe, cutAfter: i === pN - 1 && i < sorted.length - 1,
-        cells: {
-          rec: { text: `${t.w}-${t.l}${t.t ? '-' + t.t : ''}`, bold: true },
-          streak: { text: sk || '—', color: sk.startsWith('W') ? POSTER.good : sk.startsWith('L') ? POSTER.bad : POSTER.muted },
-          pf: { text: String(Math.round(t.pf)) }, pa: { text: String(Math.round(t.pa || 0)), color: '#c4b3e6' },
-          maxpf: { text: t.maxPf ? String(Math.round(t.maxPf)) : '—', color: '#c4b3e6' },
-          ap: { text: t.allPlay ? `${t.allPlay.w}-${t.allPlay.l}` : '—', color: '#c4b3e6' },
-          proj: { text: `${projW.toFixed(1)}-${(games + left - projW).toFixed(1)}`, bold: true },
-          odds: oddsC(t.playoffOdds, true), bye: oddsC(t.byeOdds), top: oddsC(t.seedOdds ? t.seedOdds[0] : null),
-        },
+        rank: standing[t.rid], name: t.name, sub: t.teamName && t.teamName.toLowerCase() !== t.name.toLowerCase() ? t.teamName : '', avatar: avatarUrl(t), isMe: t.isMe,
+        cutAfter: i === pN - 1 && i < sorted.length - 1, cells,
       };
     }),
     notes: [
-      'Projections play out the rest of the regular season 3,000 times, with every team starting its best healthy lineup.',
-      'All-play: the record a team would have if it played every other team every week.',
+      'Results: solid squares are played games; faded squares are projected, with the small number showing the % chance to win.',
+      'Projections run the rest of the regular season 3,000 times, with every team starting its best lineup: strength blends the best lineup it could have started each week (max PF) with its best healthy lineup today.',
+      'Eff.: points scored as a share of max PF. All-play: the record a team would have if it played every other team every week. Sched.: remaining schedule difficulty, 1st = toughest.',
     ],
     footLabel: last ? { title: 'Draft lottery watch', text: `${last.name} (${last.w}-${last.l})` } : null,
   };

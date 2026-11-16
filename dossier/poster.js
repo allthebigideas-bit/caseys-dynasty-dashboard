@@ -2,7 +2,7 @@
 // the league art: winners across the top, the crest, a gold title ribbon, award
 // ribbons, the table, and the slumped players along the bottom.
 
-const W = 1800;
+const BASE_W = 1800;
 const PAD = 56;
 const GOLD = '#f2b632', GOLD2 = '#ffd768', INK = '#1b1030';
 const TEXT = '#fbf6ff', MUTED = '#c4b3e6', FAINT = '#8f7bb6';
@@ -137,6 +137,7 @@ function award(ctx, x, y, w, a, img) {
  * }
  */
 export async function drawPoster(spec) {
+  const W = spec.width || BASE_W;
   try { await Promise.all([document.fonts.load(font(20, 600)), document.fonts.load(font(20, 800)), document.fonts.load(font(20, 900))]); } catch { /* system font */ }
   const [hero, bg, crest] = await Promise.all([loadImg('../splash/hero.jpg'), loadImg('../splash/background.jpg'), loadImg('../splash/crest.png')]);
   const avs = await Promise.all(spec.rows.map((r) => loadRemote(r.avatar)));
@@ -241,11 +242,11 @@ export async function drawPoster(spec) {
       const al = col.align || 'right';
       const mid = ry + ROW / 2;
       if (col.key === '#') {
-        const rank = i + 1, d = 40, bx = col.x + col.width / 2 - d / 2;
+        const rank = r.rank ?? i + 1, d = 40, bx = col.x + col.width / 2 - d / 2;
         ctx.beginPath(); ctx.arc(bx + d / 2, mid, d / 2, 0, Math.PI * 2);
         ctx.fillStyle = rank <= 3 ? goldGrad(ctx, mid - d / 2, d) : 'rgba(157,77,255,.25)'; ctx.fill();
         ctx.fillStyle = rank <= 3 ? INK : TEXT; ctx.font = font(18, 900); ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-        ctx.fillText(String(r.rank ?? rank), bx + d / 2, mid + 1);
+        ctx.fillText(String(rank), bx + d / 2, mid + 1);
         continue;
       }
       if (col.key === 'name') {
@@ -258,6 +259,20 @@ export async function drawPoster(spec) {
       }
       const cell = r.cells[col.key];
       if (!cell) continue;
+      if (cell.wl !== undefined) {
+        // one week's result: solid for played, faded with the win chance for projected
+        const bw = col.width - 6, bh = ROW - 12, bx = col.x + 3, by = ry + 6;
+        const win = cell.wl === 'W', loss = cell.wl === 'L';
+        if (win || loss || cell.wl === 'T') {
+          ctx.fillStyle = win ? (cell.proj ? 'rgba(47,198,107,.16)' : 'rgba(47,198,107,.55)') : loss ? (cell.proj ? 'rgba(240,90,90,.14)' : 'rgba(240,90,90,.5)') : 'rgba(200,200,200,.25)';
+          rr(ctx, bx, by, bw, bh, 5); ctx.fill();
+        }
+        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.fillStyle = cell.proj ? 'rgba(251,246,255,.55)' : '#fff'; ctx.font = font(cell.proj ? 15 : 18, 800);
+        ctx.fillText(cell.wl || '·', bx + bw / 2, cell.proj && cell.p != null ? mid - 8 : mid + 1);
+        if (cell.proj && cell.p != null) { ctx.fillStyle = 'rgba(251,246,255,.6)'; ctx.font = font(12, 700); ctx.fillText(String(cell.p), bx + bw / 2, mid + 12); }
+        continue;
+      }
       if (cell.bar != null) {
         const bw = col.width - 92, bx = col.x + 10, by = mid + 4;
         ctx.fillStyle = 'rgba(255,255,255,.1)'; rr(ctx, bx, by, bw, 8, 4); ctx.fill();
@@ -269,7 +284,8 @@ export async function drawPoster(spec) {
       const x = al === 'right' ? col.x + col.width - 10 : al === 'center' ? col.x + col.width / 2 : col.x + 10;
       ctx.textAlign = al; ctx.textBaseline = 'middle';
       ctx.fillStyle = cell.color || TEXT; ctx.font = font(col.hero ? 22 : 19, cell.bold || col.hero ? 800 : 600);
-      ctx.fillText(cell.text, x, mid + 1);
+      ctx.fillText(cell.text, x, cell.sub ? mid - 9 : mid + 1);
+      if (cell.sub) { ctx.fillStyle = cell.subColor || FAINT; ctx.font = font(14, 700); ctx.fillText(cell.sub, x, mid + 14); }
     }
     ry += ROW;
     if (r.cutAfter) {

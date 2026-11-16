@@ -177,7 +177,7 @@ The sidebar on the left has every page. The top bar has search (players and mana
 
 - **Export PNG** on Trade summary and Season table: a shareable poster with the league art, crest, a gold title ribbon, award ribbons and a clear table.
   - Trade summary poster: ranked by net value now (all time), with **Net value now** and **Points gained** called out in gold. Leaves out the "Offers with you" columns. Awards: Best trader, Most points from trades, Busiest dealer and Fleeced.
-  - Season table poster: standings, scoring, projected record and playoff/bye/#1 seed chances with bars, plus a dashed playoff line. Awards: Top seed favourite, Points leader, Toughest luck and Lottery watch.
+  - Season table poster: everything in the on-screen table, including the week-by-week W/L grid (faded squares are projected weeks, with the % chance to win), scoring, efficiency, all-play, strength and schedule, projected record, average seed and playoff/bye/#1 seed chances with bars, plus a dashed playoff line. It follows the table's order when sorted by playoff chances or projected record. Awards: Top seed favourite, Points leader, Toughest luck and Lottery watch.
 - **My offers** now opens with summary tiles, a by-manager table (sent and received, with outcomes and his average ask) and a weekly chart of offers sent versus received, coloured by outcome.
 - Fixed: the sidebar scrolled away with the page and got cut off.
 - Fixed: offers didn't load until sleeper.com was reloaded after installing.
