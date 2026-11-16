@@ -38,8 +38,18 @@ async function ensureWatch() {
   if (!a) await chrome.alarms.create('dossier-watch', { periodInMinutes: 5, delayInMinutes: 1 });
 }
 
+// Sleeper tabs that were already open when the extension was installed or
+// updated don't get the login-capture script until they reload, so add it now.
+async function injectIntoOpenSleeperTabs() {
+  const tabs = await chrome.tabs.query({ url: 'https://sleeper.com/*' }).catch(() => []);
+  for (const t of tabs) {
+    await chrome.scripting.executeScript({ target: { tabId: t.id }, files: ['content/sleeper.js'] }).catch(() => {});
+  }
+}
+
 chrome.runtime.onInstalled.addListener(async () => {
   await installRules();
+  injectIntoOpenSleeperTabs();
   await engine.ensureAlarm();
   await ensureWatch();
 });

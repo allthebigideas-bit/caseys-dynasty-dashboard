@@ -877,13 +877,25 @@ function passedAroundCard(m) {
     ${rows ? `<div class="scroll"><table class="t"><thead><tr><th class="num">#</th><th>Player</th><th class="num">Teams</th><th class="num">Trades</th><th>Path</th><th>Owner now</th><th class="num">Value</th></tr></thead><tbody>${rows}</tbody></table></div>` : '<p class="muted">No player has been traded more than once yet.</p>'}</div>`;
 }
 
+
+// Why offers are missing, shown on the offer pages instead of a page of zeros.
+function offersNotice() {
+  const g = S.raw && S.raw.gql;
+  if (!g || g.ok) return '';
+  const login = S.auth && S.auth.userId;
+  const why = !login
+    ? 'Offers need your Sleeper login. Open <b>sleeper.com</b> in this Chrome (or reload the tab if it was already open) while logged in. The dashboard picks it up and refreshes by itself.'
+    : esc(g.error || 'Sleeper did not return your offers.');
+  return `<div class="notice">${why} <button class="btn sm" data-action="sync" style="margin-left:8px">Sync now</button></div>`;
+}
+
 function myOffersCard(m) {
   const o = m.myOffers;
   if (!o) return '';
   const st = { complete: ['Accepted', 'good'], rejected: ['Rejected', 'sell'], cancelled: ['Withdrawn', 'mid'], proposed: ['Waiting', 'warn'] };
   const recent = o.rows.slice(0, 8).map((r) => `<tr><td>${esc(dateStr(r.created))}</td><td><div class="who">${teamAvatar(team(r.rid))}${tlink(r.rid)}</div></td><td><span class="pill ${(st[r.status] || ['', 'mid'])[1]}">${esc((st[r.status] || [r.status])[0])}</span></td><td class="num">${esc(dur(r.openMs))}</td><td class="num">${signPct(r.ask)}</td><td class="num">${signPct(r.now)}</td></tr>`).join('');
   const decided = o.accepted + o.rejected;
-  return `<div class="sec-h"><h2>Your offers</h2><span class="muted small">Every offer you've sent in this league this season, graded from your side</span></div>
+  return `${offersNotice()}<div class="sec-h"><h2>Your offers</h2><span class="muted small">Every offer you've sent in this league this season, graded from your side</span></div>
   <div class="three" style="margin-bottom:16px">
     <div class="card tile hot">${icon('swap')}<div class="num">${o.sent}</div><div class="lab">Sent · ${o.accepted} accepted · ${o.rejected} rejected · ${o.withdrawn} withdrawn · ${o.pending} waiting</div></div>
     <div class="card tile">${icon('check')}<div class="num">${decided ? pct(o.accepted / decided) : '—'}</div><div class="lab">Acceptance rate (of offers that got an answer)</div></div>
@@ -3489,7 +3501,10 @@ chrome.storage.onChanged.addListener((ch, area) => {
     const a = ch.settings.newValue.sleeper || null;
     const changed = String((a && a.userId) || '') !== String((S.auth && S.auth.userId) || '');
     S.auth = a;
-    if (changed) noticeLogin().then((sw) => { if (sw) runSync(); else render(); });
+    if (changed) noticeLogin().then((sw) => {
+      const lacks = S.raw && S.raw.me && a && String(S.raw.me.userId) === String(a.userId) && !(S.raw.gql && S.raw.gql.ok);
+      if (sw || lacks) runSync(); else render();
+    });
   }
   if (ch['alerts:feed']) S.feed = ch['alerts:feed'].newValue || [];
   if (ch.plans) S.plans = ch.plans.newValue || {};
@@ -3526,12 +3541,15 @@ async function noticeLogin() {
 (async function init() {
   await gate();
   await load();
-  await noticeLogin();
+  const switched = await noticeLogin();
+  const lid = S.auth && S.auth.userId ? String(S.auth.userId) : '';
+  // Data built before the login reached this browser: rebuild it with offers.
+  const missingOffers = !!(lid && S.raw && S.raw.me && String(S.raw.me.userId) === lid && !(S.raw.gql && S.raw.gql.ok));
   S.prevSeen = S.cfg.lastSeen || 0;
   await rebuild();
   render();
   await sync.saveSettings({ lastSeen: Date.now() });
-  const stale = !S.raw || !S.book || !S.prod || Date.now() - S.raw.at > 30 * 60e3;
+  const stale = switched || missingOffers || !S.raw || !S.book || !S.prod || Date.now() - S.raw.at > 30 * 60e3;
   if (stale) runSync();
   else freshen();
 })();
