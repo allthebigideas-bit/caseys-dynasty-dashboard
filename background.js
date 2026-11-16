@@ -1,4 +1,4 @@
-// Waiver Vulture service worker: message router, alarms, network rules,
+// Service worker: message router, alarms, network rules,
 // and the dossier's background watcher.
 
 import { store, log, normName, bestMatch } from './lib/util.js';
@@ -62,7 +62,7 @@ chrome.runtime.onStartup.addListener(async () => {
 
 chrome.alarms.onAlarm.addListener((a) => {
   if (a.name === 'wv-tick') engine.tick();
-  if (a.name === 'dossier-watch') alerts.check().catch((e) => console.warn('[WV] watch', e));
+  if (a.name === 'dossier-watch') alerts.check().catch((e) => console.warn('[CDD] watch', e));
 });
 
 async function openPage(path) {
@@ -82,6 +82,21 @@ chrome.notifications.onClicked.addListener((id) => {
   openPage(DOSSIER);
   chrome.notifications.clear(id);
 });
+
+// Notes, alert history and waiver plans belong to one Sleeper account. Everyone
+// in the league shares the same league ID, so these keys can't tell two members
+// on one computer apart: on a switch, park the old account's copies under
+// `account:<id>` and bring back the new account's (or start it empty).
+const PER_ACCOUNT = ['notes', 'briefDone', 'alerts:feed', 'alerts:seen', 'plans'];
+
+async function swapAccount(fromId, toId) {
+  const mine = await chrome.storage.local.get(PER_ACCOUNT);
+  const theirs = (await store.get(`account:${toId}`, null)) || {};
+  await chrome.storage.local.set({ [`account:${fromId}`]: mine });
+  const back = PER_ACCOUNT.filter((k) => theirs[k] !== undefined);
+  await chrome.storage.local.remove([...PER_ACCOUNT.filter((k) => theirs[k] === undefined), `account:${toId}`]);
+  if (back.length) await chrome.storage.local.set(Object.fromEntries(back.map((k) => [k, theirs[k]])));
+}
 
 // ---- handlers -------------------------------------------------------------------
 
@@ -104,6 +119,7 @@ const handlers = {
         }
       }
       await store.set('leagues', leagues);
+      await swapAccount(cur.userId, r.sleeper.userId);
       await log('info', 'Sleeper', `Switched accounts (was ${cur.displayName || cur.userId}). Waiver runs for the previous account were stopped.`);
     }
     return r;
