@@ -349,7 +349,7 @@ function render() {
       ${why ? `<div class="notice">${esc(why)}</div>` : ''}
       <p class="muted">${S.syncing ? 'Reading rosters, trades, values, rankings and stats. The first sync takes a minute or two.' : (loginId() ? 'Your Sleeper login is picked up. Sync to build your team\'s file.' : 'Log in at sleeper.com in this browser and your team loads by itself, or pick your league and team below.')}</p>
       ${S.syncing || !loginId() ? '' : `<div class="row"><button class="btn primary" data-action="sync">${icon('sync')}Sync now</button><a class="btn" href="#settings">Settings</a></div>`}
-    </div>${S.syncing ? '' : viewPicker({ welcome: true })}${r.page === 'settings' ? viewSettings() : ''}`;
+    </div>${S.syncing || r.page === 'settings' ? '' : viewPicker({ welcome: true })}${r.page === 'settings' ? viewSettings() : ''}`;
     return;
   }
   const notice = S.error ? `<div class="notice">Last sync failed: ${esc(S.error)}. Showing the previous data.</div>` : '';

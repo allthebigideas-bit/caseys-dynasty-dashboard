@@ -21,7 +21,7 @@ playwright-cli -s=cdd run-code "async page => { const c = page.context(); const 
 
 The worker URL is `chrome-extension://<id>/background.js`; the dashboard is `chrome-extension://<id>/dossier/dossier.html`. The ID stays the same for a given repo path.
 
-Under the Claude Code sandbox, `playwright-cli` needs write access to `~/Library/Caches/ms-playwright`.
+Under the Claude Code sandbox, run `playwright-cli` with the sandbox off. Inside it, launching fails with "Browser is already in use" even on a new, empty profile, and writable `~/Library/Caches/ms-playwright` alone doesn't fix that.
 
 ## 2. Get past the password screen
 
