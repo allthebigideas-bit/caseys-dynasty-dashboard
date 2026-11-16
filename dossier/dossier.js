@@ -36,6 +36,9 @@ const dateY = (ts) => new Date(ts).toLocaleDateString([], { month: 'short', day:
 // ---- icons ----------------------------------------------------------------------------
 
 const ICONS = {
+  sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>',
+  moon: '<path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"/>',
+  contrast: '<circle cx="12" cy="12" r="9"/><path d="M12 3v18a9 9 0 0 0 0-18z" fill="currentColor"/>',
   home: '<path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/>',
   users: '<circle cx="9" cy="8" r="3.2"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6"/><path d="M16 4.5a3 3 0 0 1 0 6M21 20c0-2.6-1.6-4.8-4-5.6"/>',
   swap: '<path d="M7 4 3 8l4 4"/><path d="M3 8h14"/><path d="m17 20 4-4-4-4"/><path d="M21 16H7"/>',
@@ -108,7 +111,7 @@ async function rebuild() {
   const ctx = () => ({
     book: S.book, dict: S.dict, fpBySid: S.aux.fpBySid || {}, proj: S.aux.proj || {}, sidToFp: S.aux.sidToFp || {},
     snaps: S.snaps, valueHistory: S.vhist, hist: S.hist, prod: S.prod, managerNotes: S.notes,
-    prefs: { pickLocks: S.cfg.pickLocks || {}, strategy: S.cfg.strategy, draftOrder: S.cfg.draftOrder || 'standings', shop: S.cfg.shop || null, pickDiscount: S.cfg.pickDiscount != null ? S.cfg.pickDiscount : 0.15, lastSeen: S.prevSeen },
+    prefs: { pickLocks: S.cfg.pickLocks || {}, strategy: S.cfg.strategy, draftOrder: S.cfg.draftOrder || 'standings', shop: S.cfg.shop || null, pickDiscount: S.cfg.pickDiscount != null ? S.cfg.pickDiscount : 0.15, youthBias: S.cfg.youthBias != null ? S.cfg.youthBias : 1, lastSeen: S.prevSeen },
   });
   try {
     S.model = buildModel(S.raw, ctx());
@@ -209,6 +212,17 @@ function spark(vals, color = 'var(--violet-2)') {
 const uid = () => (S.raw ? `sleeper:${S.raw.league.league_id}` : null);
 const plan = () => ({ ...DEFAULT_PLAN, ...((uid() && S.plans[uid()]) || {}) });
 
+
+// ---- colour theme -----------------------------------------------------------------------------
+const THEMES = ['auto', 'dark', 'light'];
+function curTheme() { try { return localStorage.getItem('cdd-theme') || 'auto'; } catch { return 'auto'; } }
+function themeName() { return { auto: 'Auto (follows your computer)', dark: 'Dark', light: 'Light' }[curTheme()]; }
+function themeIcon() { return { auto: 'contrast', dark: 'moon', light: 'sun' }[curTheme()]; }
+function applyTheme(t) {
+  try { localStorage.setItem('cdd-theme', t); } catch { /* ignore */ }
+  if (t === 'auto') delete document.documentElement.dataset.theme; else document.documentElement.dataset.theme = t;
+}
+
 // ---- shell -----------------------------------------------------------------------------
 
 function route() {
@@ -226,10 +240,10 @@ function renderSide() {
   const p = S.raw ? plan() : null;
   const armed = !!(p && p.run);
   const item = (href, ic, label, on, extra = '') => `<a href="${href}" class="${on ? 'on' : ''}">${icon(ic)}<span>${esc(label)}</span>${extra}</a>`;
-  const mgrSub = m && (S.ui.open.managers || r.page === 'manager' || r.page === 'summary' || r.page === 'season') ? `<div class="sub"><a href="#season" class="${r.page === 'season' ? 'on' : ''}">${icon('trophy')}Season table</a><a href="#summary" class="${r.page === 'summary' ? 'on' : ''}">${icon('chart')}Trade summary</a>${[...m.teams].sort((a, b) => b.posture.score - a.posture.score).map((t) => `<a href="#manager/${t.rid}" class="${r.page === 'manager' && Number(r.id) === t.rid ? 'on' : ''}"><span class="dot" style="background:${t.posture.tone === 'buy' ? 'var(--violet)' : t.posture.tone === 'sell' ? 'var(--red)' : '#6c6c88'}"></span>${esc(t.name)}${t.avoid ? ' ' + icon('note') : ''}</a>`).join('')}</div>` : '';
+  const mgrSub = m && (S.ui.open.managers || r.page === 'manager' || r.page === 'summary' || r.page === 'season') ? `<div class="sub"><a href="#season" class="${r.page === 'season' ? 'on' : ''}">${icon('trophy')}Season table</a><a href="#summary" class="${r.page === 'summary' ? 'on' : ''}">${icon('chart')}Trade summary</a>${[...m.teams].sort((a, b) => b.posture.score - a.posture.score).map((t) => `<a href="#manager/${t.rid}" class="${r.page === 'manager' && Number(r.id) === t.rid ? 'on' : ''}"><span class="dot" style="background:${t.posture.tone === 'buy' ? 'var(--violet)' : t.posture.tone === 'sell' ? 'var(--red)' : 'var(--faint)'}"></span>${esc(t.name)}${t.avoid ? ' ' + icon('note') : ''}</a>`).join('')}</div>` : '';
   const tradeSub = S.ui.open.trades || r.page === 'trades' ? `<div class="sub">${[['ledger', 'League trades'], ['offers', 'My offers'], ['incoming', 'Offers to you'], ['lab', 'Trade lab'], ['finder', 'Trade finder'], ['week', 'This week']].map(([id, l]) => `<a href="#trades/${id}" class="${r.page === 'trades' && (r.id || 'ledger') === id ? 'on' : ''}">${esc(l)}${id === 'offers' && pend ? ` <span class="pill sell" style="padding:0 6px">${pend}</span>` : ''}</a>`).join('')}</div>` : '';
   $('#side').innerHTML = `
-    <div class="logo"><img src="../icons/icon48.png" alt="">Waiver Vulture</div>
+    <a class="logo" href="#overview"><img src="../splash/crest-sm.png" alt=""><span>Casey's<b>Dynasty</b></span></a>
     <div class="switcher">${me ? teamAvatar(me) : '<span class="av">WV</span>'}<div><b>${esc(L ? L.name : 'No league yet')}</b><span>${esc(me ? `${me.teamName || me.name}` : 'Sync to start')}</span></div></div>
     <div class="nav-h">Main</div>
     <nav class="nav">
@@ -285,6 +299,7 @@ function renderTop() {
     <button class="iconbtn" data-action="toggleFeed" aria-label="Background alerts">${icon('history')}</button>
     <a class="iconbtn" href="#trades/offers" aria-label="Offers waiting">${icon('bell')}${pend ? '<span class="pip"></span>' : ''}</a>
     <button class="iconbtn" data-action="refreshNow" aria-label="Refresh rosters, picks and offers" title="Refresh rosters, picks, offers and trade blocks from Sleeper (a few seconds). Sync now in the sidebar reloads everything.">${icon('sync')}</button>
+    <button class="iconbtn" data-action="cycleTheme" aria-label="Colour theme: ${themeName()}" title="Colour theme: ${themeName()}. Click to change.">${icon(themeIcon())}</button>
     <button class="toggle ${armed ? 'on' : ''}" data-action="armToggle" title="Overnight waiver claims">Waivers armed <span class="sw"></span></button>
     ${S.ui.feedOpen ? `<div class="results" style="right:22px;top:52px;position:fixed;width:360px">${S.feed.length ? S.feed.slice(0, 12).map((f) => `<div style="padding:8px"><b>${esc(f.title)}</b> <span class="faint small">${esc(when(f.at))}</span><div class="muted small">${esc(f.body)}</div></div>`).join('') : '<div class="empty" style="padding:10px">No background alerts yet. They appear here and as Chrome notifications.</div>'}</div>` : ''}`;
 }
@@ -302,9 +317,9 @@ function render() {
   const view = $('#view');
   const r = route();
   if (!S.model) {
-    const why = S.error || S.buildError;
-    view.innerHTML = `<div class="card" style="max-width:640px">
-      <h3>${S.syncing ? 'Building your league file' : 'Welcome to Waiver Vulture'}</h3>
+    const why = (S.error && S.error !== sync.NEED_TEAM ? S.error : null) || S.buildError;
+    view.innerHTML = `${artBanner({ mood: 'glory', eyebrow: "Casey's Dynasty League", title: S.syncing ? 'Building your league file' : 'Welcome to the dashboard', sub: S.syncing ? esc(S.syncing) + '…' : 'Every manager profiled, every trade graded, and your own team front and centre.' })}<div class="card" style="max-width:640px">
+      <h3>${S.syncing ? 'Building your league file' : 'Getting started'}</h3>
       ${why ? `<div class="notice">${esc(why)}</div>` : ''}
       <p class="muted">${S.syncing ? 'Reading rosters, trades, values, rankings and stats. The first sync takes a minute or two.' : (loginId() ? 'Your Sleeper login is picked up. Sync to build your team\'s file.' : 'Log in at sleeper.com in this browser and your team loads by itself, or pick your league and team below.')}</p>
       ${S.syncing || !loginId() ? '' : `<div class="row"><button class="btn primary" data-action="sync">${icon('sync')}Sync now</button><a class="btn" href="#settings">Settings</a></div>`}
@@ -381,6 +396,17 @@ function fitTree() {
 
 function briefKey(b) { return `${b.kind}|${b.title}`; }
 
+
+// Art banner: the winners half of the league art for teams on the way up,
+// the duds half for teams on the way down.
+function artBanner({ mood, eyebrow, title, sub, stats = [] }) {
+  return `<div class="art-banner ${mood === 'gloom' ? 'gloom' : 'glory'}">
+    <div class="art-txt"><div class="eyebrow">${esc(eyebrow)}</div><h1>${esc(title)}</h1>${sub ? `<p>${sub}</p>` : ''}
+      ${stats.length ? `<div class="art-stats">${stats.map(([l, v]) => `<div><span>${esc(l)}</span><b>${v}</b></div>`).join('')}</div>` : ''}</div>
+  </div>`;
+}
+const moodOf = (t) => (t && ((t.playoffOdds != null && t.playoffOdds >= 0.5) || ['ALL-IN', 'CONTENDER'].includes(t.posture.label)) ? 'glory' : 'gloom');
+
 function viewOverview() {
   const m = S.model;
   const me = team(m.me);
@@ -434,7 +460,15 @@ function viewOverview() {
   const byesAhead = sched.reduce((n, g) => n + g.myByes.length, 0);
   const swaps = ss ? ss.swaps.filter((x) => x.start).length : 0;
 
-  return `<div class="split">
+  const odds = me.playoffOdds;
+  const hero = artBanner({
+    mood: moodOf(me),
+    eyebrow: `Week ${m.league.week} · ${m.league.name || (S.raw && S.raw.league.name) || ''}`,
+    title: me.name,
+    sub: moodOf(me) === 'glory' ? 'Trophy energy. Keep pressing.' : 'Rough patch. Time to get younger and build for the next run.',
+    stats: [['Record', `${me.w}-${me.l}${me.t ? '-' + me.t : ''}`], ['Playoff odds', pct(odds)], ['Posture', esc(me.posture.label.charAt(0) + me.posture.label.slice(1).toLowerCase())], ['Offers waiting', String(pend)]],
+  });
+  return hero + `<div class="split">
     <div class="grid">
       <h1 class="page" style="margin:0">My league stats</h1>
       <div class="three">
@@ -501,7 +535,7 @@ function scheduleCard(m, me) {
 function phaseDonut(t, m) {
   const ph = t.phase;
   if (!ph) return '<p class="muted">Not enough data yet.</p>';
-  const segs = [['Rising', ph.rising, 'var(--green)', 'green', 'rising'], ['At peak', ph.peak, 'var(--violet)', '', 'peak'], ['Declining', ph.declining, 'var(--orange)', 'orange', 'declining'], ['Draft picks', ph.picks, '#5d5d7a', 'grey', null]];
+  const segs = [['Rising', ph.rising, 'var(--green)', 'green', 'rising'], ['At peak', ph.peak, 'var(--violet)', '', 'peak'], ['Declining', ph.declining, 'var(--orange)', 'orange', 'declining'], ['Draft picks', ph.picks, 'var(--faint)', 'grey', null]];
   const tot = ph.total || 1;
   let acc = 0;
   const C = 2 * Math.PI * 62;
@@ -1205,7 +1239,7 @@ function viewIncoming() {
     const askVals = uniq.map((w) => mean((byWeek[w] || []).map((x) => x.ask).filter((v) => v != null)));
     const aMax = Math.max(0.3, ...askVals.filter((v) => v != null)), aMin = Math.min(-0.2, ...askVals.filter((v) => v != null));
     const yA = (v) => T + (1 - (v - aMin) / (aMax - aMin)) * (H - T - B);
-    const bars = uniq.map((w, i) => { const n = (byWeek[w] || []).length; const h = (n / maxN) * (H - T - B); return `<rect x="${L + i * bw + bw * 0.18}" y="${H - B - h}" width="${bw * 0.64}" height="${h}" rx="3" fill="#3a3466"><title>Week of ${new Date(w).toLocaleDateString()}: ${n} offer${n === 1 ? '' : 's'}</title></rect>`; }).join('');
+    const bars = uniq.map((w, i) => { const n = (byWeek[w] || []).length; const h = (n / maxN) * (H - T - B); return `<rect x="${L + i * bw + bw * 0.18}" y="${H - B - h}" width="${bw * 0.64}" height="${h}" rx="3" fill="var(--line-2)"><title>Week of ${new Date(w).toLocaleDateString()}: ${n} offer${n === 1 ? '' : 's'}</title></rect>`; }).join('');
     const pts = uniq.map((w, i) => (askVals[i] == null ? null : [L + i * bw + bw / 2, yA(askVals[i]), askVals[i], w])).filter(Boolean);
     const line = pts.length > 1 ? `<polyline points="${pts.map((p) => `${p[0]},${p[1]}`).join(' ')}" fill="none" stroke="var(--orange)" stroke-width="2"/>` : '';
     const dots = pts.map((p) => `<circle cx="${p[0]}" cy="${p[1]}" r="3.5" fill="var(--orange)"><title>Week of ${new Date(p[3]).toLocaleDateString()}: average ask ${signPct(p[2])}</title></circle>`).join('');
@@ -1213,7 +1247,7 @@ function viewIncoming() {
     const stanceX = stance && stance >= first && stance <= last + 7 * 86400e3 ? L + ((stance - first) / (7 * 86400e3)) * bw : null;
     const labels = uniq.map((w, i) => (i % Math.ceil(uniq.length / 8) === 0 ? `<text x="${L + i * bw + bw / 2}" y="${H - 8}" text-anchor="middle">${new Date(w).toLocaleDateString([], { month: 'short', day: 'numeric' })}</text>` : '')).join('');
     chart = `<div class="chart"><svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Offers per week and average ask">${zero}${bars}${line}${dots}${labels}<text x="${L - 6}" y="${T + 8}" text-anchor="end">${maxN}</text>${stanceX != null ? `<line x1="${stanceX}" x2="${stanceX}" y1="${T}" y2="${H - B}" stroke="var(--violet-2)" stroke-dasharray="4 3"/><text x="${stanceX + 4}" y="${T + 10}" fill="var(--violet-2)">firm stance</text>` : ''}</svg>
-      <div class="row small muted"><span><i class="sw" style="background:#3a3466"></i>Offers per week</span><span style="color:var(--orange)">● Average ask that week</span></div></div>`;
+      <div class="row small muted"><span><i class="sw" style="background:var(--line-2)"></i>Offers per week</span><span style="color:var(--orange)">● Average ask that week</span></div></div>`;
   }
 
   // before / after your firmer stance
@@ -1519,9 +1553,9 @@ function viewManagers() {
         <dt>Dynasty value</dt><dd>${k(t.totalValue)}</dd>
         <dt>True age</dt><dd>${t.trueAge ? t.trueAge.toFixed(1) : '—'}</dd>
         <dt>Needs</dt><dd>${t.needs.length ? esc(t.needs.join(', ')) : '—'}</dd>
-        ${!t.isMe && asked.length ? `<dt>Asked you for</dt><dd style="color:#ffb0b0">${esc(asked.join(', '))}</dd>` : ''}
+        ${!t.isMe && asked.length ? `<dt>Asked you for</dt><dd style="color:var(--bad-t)">${esc(asked.join(', '))}</dd>` : ''}
       </dl>
-      ${t.phase ? `<div class="phasebar" title="Rising ${pct(t.phase.share.rising)}, at peak ${pct(t.phase.share.peak)}, declining ${pct(t.phase.share.declining)}, picks ${pct(t.phase.share.picks)}"><i class="ri" style="width:${(t.phase.share.rising * 100).toFixed(1)}%"></i><i class="pk" style="width:${(t.phase.share.peak * 100).toFixed(1)}%"></i><i class="de" style="width:${(t.phase.share.declining * 100).toFixed(1)}%"></i><i class="pi" style="width:${(t.phase.share.picks * 100).toFixed(1)}%"></i></div><div class="legend"><span><i style="background:var(--green)"></i>Rising ${pct(t.phase.share.rising)}</span><span><i style="background:var(--violet)"></i>Peak ${pct(t.phase.share.peak)}</span><span><i style="background:var(--orange)"></i>Declining ${pct(t.phase.share.declining)}</span><span><i style="background:#5d5d7a"></i>Picks ${pct(t.phase.share.picks)}</span></div>` : ''}
+      ${t.phase ? `<div class="phasebar" title="Rising ${pct(t.phase.share.rising)}, at peak ${pct(t.phase.share.peak)}, declining ${pct(t.phase.share.declining)}, picks ${pct(t.phase.share.picks)}"><i class="ri" style="width:${(t.phase.share.rising * 100).toFixed(1)}%"></i><i class="pk" style="width:${(t.phase.share.peak * 100).toFixed(1)}%"></i><i class="de" style="width:${(t.phase.share.declining * 100).toFixed(1)}%"></i><i class="pi" style="width:${(t.phase.share.picks * 100).toFixed(1)}%"></i></div><div class="legend"><span><i style="background:var(--green)"></i>Rising ${pct(t.phase.share.rising)}</span><span><i style="background:var(--violet)"></i>Peak ${pct(t.phase.share.peak)}</span><span><i style="background:var(--orange)"></i>Declining ${pct(t.phase.share.declining)}</span><span><i style="background:var(--faint)"></i>Picks ${pct(t.phase.share.picks)}</span></div>` : ''}
       ${!t.isMe ? withYouBox(t, m) : ''}
       ${t.note && t.note.text ? `<div class="notebox judge ${t.avoid ? 'avoid' : ''}">${esc(t.note.text.length > 110 ? t.note.text.slice(0, 110) + '…' : t.note.text)}</div>` : ''}
     </a>`;
@@ -1595,7 +1629,7 @@ function viewManager(rid) {
       <td class="num">${pp ? pp.seasons[0].ppg.toFixed(1) : '—'}</td><td>${pp ? spark(pp.seasons.map((s) => s.ppg), pp.phase === 'declining' ? 'var(--orange)' : 'var(--green)') : ''}</td>
       <td class="num ${a.trend30 > 0 ? 'up' : a.trend30 < 0 ? 'down' : ''}">${a.trend30 ? (a.trend30 > 0 ? '+' : '') + a.trend30 : ''}</td></tr>`;
   }).join('');
-  return `
+  return `<div class="art-banner slim ${moodOf(t) === 'gloom' ? 'gloom' : 'glory'}" aria-hidden="true"></div>
     <div class="card" style="display:flex;gap:18px;align-items:center;flex-wrap:wrap">
       ${teamAvatar(t, 'lg ring')}
       <div style="flex:1;min-width:220px"><div class="muted small">${t.isMe ? 'Your team' : 'Manager'}</div><h1 class="page" style="font-size:22px;margin:2px 0">${esc(t.name)}</h1><div class="muted">${esc(t.teamName)}</div>
@@ -1651,7 +1685,7 @@ function viewManager(rid) {
 function assetRow(a, nt) {
   const thenV = nt.then && nt.thenVals ? nt.thenVals[a.key] : null;
   if (a.kind === 'pick') {
-    return `<div class="asset"><span class="av head" style="color:#c3b7ff">PK</span><div class="nm"><b>${esc(a.label)}</b><span class="meta">${a.became ? `became ${esc(a.becameName || P(a.became).name)}` : Number(a.season) > S.model.league.season ? 'future pick' : ''}</span></div><div class="vals">${thenV != null ? `<span class="then">${k(thenV)} →</span> ` : ''}${k(a.v)}</div></div>`;
+    return `<div class="asset"><span class="av head" style="color:var(--accent-t)">PK</span><div class="nm"><b>${esc(a.label)}</b><span class="meta">${a.became ? `became ${esc(a.becameName || P(a.became).name)}` : Number(a.season) > S.model.league.season ? 'future pick' : ''}</span></div><div class="vals">${thenV != null ? `<span class="then">${k(thenV)} →</span> ` : ''}${k(a.v)}</div></div>`;
   }
   return `<div class="asset">${headshot(a.id)}<div class="nm">${playerLink(a.id, a.name)}<span class="meta">${esc(a.pos)}${a.age ? ` · ${Math.floor(a.age)}` : ''}${a.team ? ` · ${esc(a.team)}` : ''}</span></div><div class="vals">${thenV != null ? `<span class="then">${k(thenV)} →</span> ` : ''}${k(a.v)}</div></div>`;
 }
@@ -1831,7 +1865,9 @@ function viewTrades(sub) {
         <label class="f">Shop a player${shopSel}</label>
         <label class="f">Strategy${stratSel}</label>
         <label class="f">Value picks at${discSel}</label>
+        <label class="f">Age${`<select data-finder="youthBias">${[[0, 'Ignore age'], [1, 'Favour youth'], [1.6, 'Strongly favour youth']].map(([v, l]) => `<option value="${v}" ${Math.abs((o.youthBias ?? 1) - v) < 0.01 ? 'selected' : ''}>${l}</option>`).join('')}</select>`}</label>
       </div>
+      ${(o.youthBias ?? 1) > 0 ? '<p class="muted small" style="margin:-4px 0 12px">Leaning young: players past their position\'s peak (RB 24, WR 25, TE 26, QB 27) count for less to you and fall off fast after RB 28, WR/TE 30, QB 33; players younger than their peak get a small boost. Selling your own older players costs you less.</p>' : ''}
       ${m.finderSkipped.length ? `<div class="notice info judge">Skipped because of your notes: ${m.finderSkipped.map(tlink).join(', ')}.</div>` : ''}
       ${m.finder.length ? m.finder.map((f) => `<div class="trade"><div class="meta">${teamAvatar(team(f.rid))}<b style="color:var(--text)">${tlink(f.rid)}</b>${posture(team(f.rid))}${team(f.rid).needs.length ? `<span>needs ${esc(team(f.rid).needs.join(', '))}</span>` : ''}</div>
         ${f.ideas.map((i) => `<div class="sides" style="margin-bottom:10px">
@@ -1894,7 +1930,7 @@ function viewLab() {
   const sentA = labAssets(A).filter((a) => S.lab.picked.has(a.key));
   const sentB = labAssets(B).filter((a) => S.lab.picked.has(a.key));
 
-  const assetLine = (a) => `<div class="asset">${a.kind === 'pick' ? '<span class="av head" style="color:#c3b7ff">PK</span>' : headshot(a.id)}<div class="nm">${a.kind === 'pick' ? `<b>${esc(a.name)}</b>` : playerLink(a.id, a.name)}<span class="meta">${a.kind === 'pick' ? 'draft pick' : `${esc(a.pos)}${a.age ? ` · ${Math.floor(a.age)}` : ''}${a.team ? ` · ${esc(a.team)}` : ''}`} · FC ${k(fcValue(a))}</span></div><div class="vals">${k(a.v)}</div><button class="ibtn" data-action="labRemove" data-key="${esc(a.key)}" title="Remove from the deal">✕</button></div>`;
+  const assetLine = (a) => `<div class="asset">${a.kind === 'pick' ? '<span class="av head" style="color:var(--accent-t)">PK</span>' : headshot(a.id)}<div class="nm">${a.kind === 'pick' ? `<b>${esc(a.name)}</b>` : playerLink(a.id, a.name)}<span class="meta">${a.kind === 'pick' ? 'draft pick' : `${esc(a.pos)}${a.age ? ` · ${Math.floor(a.age)}` : ''}${a.team ? ` · ${esc(a.team)}` : ''}`} · FC ${k(fcValue(a))}</span></div><div class="vals">${k(a.v)}</div><button class="ibtn" data-action="labRemove" data-key="${esc(a.key)}" title="Remove from the deal">✕</button></div>`;
 
   let deal;
   if (!sentA.length && !sentB.length) {
@@ -1968,7 +2004,7 @@ function trajectoryChart(m) {
   const y = (v) => T + (1 - (v - min) / (max - min)) * (H - T - B);
   const line = (arr, color, dash = '') => `<polyline points="${arr.map((v, i) => `${x(i)},${y(v)}`).join(' ')}" fill="none" stroke="${color}" stroke-width="2.5" ${dash ? `stroke-dasharray="${dash}"` : ''} stroke-linecap="round"/>${arr.map((v, i) => `<circle cx="${x(i)}" cy="${y(v)}" r="3.5" fill="${color}"/>`).join('')}`;
   const ticks = [min, (min + max) / 2, max].map((v) => `<line class="gl" x1="${L}" x2="${W - R}" y1="${y(v)}" y2="${y(v)}"/><text x="${L - 6}" y="${y(v) + 4}" text-anchor="end">${Math.round(v)}</text>`).join('');
-  return `<div class="chart"><svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Projected lineup points per week by season">${ticks}${seasons.map((s, i) => `<text x="${x(i)}" y="${H - 6}" text-anchor="middle">${s}</text>`).join('')}${line(best, '#5d5d7a', '4 4')}${line(lg, '#8d8da8', '2 4')}${line(me.trajectory, 'var(--violet-2)')}</svg>
+  return `<div class="chart"><svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Projected lineup points per week by season">${ticks}${seasons.map((s, i) => `<text x="${x(i)}" y="${H - 6}" text-anchor="middle">${s}</text>`).join('')}${line(best, 'var(--faint)', '4 4')}${line(lg, 'var(--muted)', '2 4')}${line(me.trajectory, 'var(--violet-2)')}</svg>
     <div class="row small muted"><span style="color:var(--violet-2)">● You</span><span>● League median</span><span>● Best team</span></div></div>`;
 }
 
@@ -2419,14 +2455,14 @@ function treeDiagram(nt, opts = {}) {
       : `<button class="ftog" data-action="treeClose" data-path="${esc(path)}" title="Collapse this branch">−</button>`;
   };
   const box = (x, n, tg = '') => {
-    const pic = x.kind === 'player' ? headshot(x.sid) : '<span class="av head" style="color:#c3b7ff">PK</span>';
+    const pic = x.kind === 'player' ? headshot(x.sid) : '<span class="av head" style="color:var(--accent-t)">PK</span>';
     const name = x.kind === 'player' ? playerLink(x.sid, itemName(x)) : esc(itemName(x));
     return `<div class="fbox st-${n.status}">${pic}<div class="fb"><div class="fn">${tag(x)} ${name}</div>${x.draftedWith ? `<div class="fs">Drafted ${esc(x.draftedWith)}</div>` : ''}${statusTxt(n) ? `<div class="fs">${esc(statusTxt(n))}</div>` : ''}<div class="fv">${n.status === 'traded' || n.status === 'drafted' ? `became <b>${k(n.total)}</b>` : n.status === 'kept' || n.status === 'owned' ? `worth <b>${k(n.total)}</b>` : '<b>0</b>'}</div></div>${tg}</div>`;
   };
   const also = (n) => (n.alsoSent && n.alsoSent.length && opts.withText ? `<span class="fs fwith">with ${n.alsoSent.map((x) => esc(itemName(x))).join(', ')}</span>` : '');
   // Assets this team added to a later deal from outside the tree: drawn faded beside the tree's own.
   const extraBox = (x) => {
-    const pic = x.kind === 'player' ? headshot(x.sid) : '<span class="av head" style="color:#c3b7ff">PK</span>';
+    const pic = x.kind === 'player' ? headshot(x.sid) : '<span class="av head" style="color:var(--accent-t)">PK</span>';
     const name = x.kind === 'player' ? playerLink(x.sid, itemName(x)) : esc(itemName(x));
     return `<div class="fbox st-extra" title="Not from this trade: added to the deal by the same team"><span class="xtag">+</span>${pic}<div class="fb"><div class="fn">${tag(x)} ${name}</div><div class="fs">Added in this deal</div></div></div>`;
   };
@@ -3115,6 +3151,7 @@ const actions = {
       render();
     }
   },
+  cycleTheme() { applyTheme(THEMES[(THEMES.indexOf(curTheme()) + 1) % THEMES.length]); renderTop(); },
   async toggleNeutral() { S.ui.neutral = !S.ui.neutral; document.body.classList.toggle('neutral', S.ui.neutral); await chrome.storage.local.set({ 'ui:neutral': S.ui.neutral }); render(); },
   async shop(el) { S.cfg = await sync.saveSettings({ shop: el.dataset.sid }); S.ui.drawer = null; await rebuild(); location.hash = '#trades/finder'; render(); },
   incFor(el) { S.ui.inc.rid = el.dataset.rid || 'all'; },
@@ -3393,6 +3430,7 @@ document.addEventListener('change', async (e) => {
     if (key === 'shop') S.cfg = await sync.saveSettings({ shop: el.value || null });
     if (key === 'strategy') S.cfg = await sync.saveSettings({ strategy: el.value });
     if (key === 'pickDiscount') S.cfg = await sync.saveSettings({ pickDiscount: Number(el.value) });
+    if (key === 'youthBias') S.cfg = await sync.saveSettings({ youthBias: Number(el.value) });
     await rebuild();
     render();
   } else if (el.dataset.wv) {

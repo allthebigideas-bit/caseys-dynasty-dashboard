@@ -173,6 +173,14 @@ The sidebar on the left has every page. The top bar has search (players and mana
   - **Who drafts well in this league,** and every past rookie draft with what each pick became.
   - **Prospect board:** FantasyPros dynasty rookie rankings when they cover next year's class. Otherwise, paste any ranking list. You can star your guys.
 
+## What changed in 2.24.0
+
+- New look to match the league crest: royal purple and trophy gold, with the crest in the sidebar and gold buttons.
+- **Dark and light modes.** The half-moon button in the top bar switches between Auto (follows your computer), Dark and Light.
+- League art on the welcome screen, the Overview banner and each manager's page. Teams on the way up get the celebrating players; teams on the way down get the slumped ones.
+- Phones and other tall screens get their own portrait background on the login screen.
+- **Trade finder leans young.** Players past their position's peak (RB 24, WR 25, TE 26, QB 27) count for less and drop off fast after RB 28, WR/TE 30, QB 33. Players younger than their peak get a small boost, and selling your own older players costs you less. Choose **Ignore age**, **Favour youth** (the default) or **Strongly favour youth** in the finder. Contenders get a softer version so they can still buy proven starters.
+
 ## What changed in 2.23.0 (team version)
 
 - Each league member sees their own team: the dashboard follows whoever is logged in to Sleeper in that Chrome.

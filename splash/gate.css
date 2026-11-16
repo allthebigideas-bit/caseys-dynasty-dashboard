@@ -84,6 +84,13 @@ body.gated .app, body.gated #drawer { visibility: hidden; }
 @media (max-aspect-ratio: 4/3) {
   .gate-shade { background: linear-gradient(180deg, rgba(34, 6, 64, .35), rgba(34, 6, 64, .8)); }
 }
+/* Phones and other portrait screens: the tall art, winners above and duds below,
+   with the form in the open purple band in the middle. */
+@media (max-aspect-ratio: 4/5) {
+  .gate-bg { background-image: url("background-mobile.jpg"); background-position: center; }
+  .gate-shade { background: radial-gradient(ellipse 80% 34% at 50% 50%, rgba(34, 6, 64, .5), rgba(34, 6, 64, 0)); }
+  .gate-crest { width: min(170px, 44vw); margin-bottom: 16px; }
+}
 
 @media (prefers-reduced-motion: reduce) {
   .gate-bg, .gate-card, .gate-card.shake { animation: none; }
