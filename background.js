@@ -87,7 +87,7 @@ chrome.notifications.onClicked.addListener((id) => {
 // in the league shares the same league ID, so these keys can't tell two members
 // on one computer apart: on a switch, park the old account's copies under
 // `account:<id>` and bring back the new account's (or start it empty).
-const PER_ACCOUNT = ['notes', 'briefDone', 'alerts:feed', 'alerts:seen', 'plans'];
+const PER_ACCOUNT = ['notes', 'briefDone', 'alerts:feed', 'alerts:seen', 'plans', 'blockExtra', 'draft:stars', 'draft:board'];
 
 async function swapAccount(fromId, toId) {
   const mine = await chrome.storage.local.get(PER_ACCOUNT);

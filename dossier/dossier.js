@@ -3762,6 +3762,9 @@ chrome.storage.onChanged.addListener((ch, area) => {
   const swapped = (ch.notes && !same(ch.notes.newValue, S.notes)) || (ch.briefDone && !same(ch.briefDone.newValue, S.briefDone));
   if (ch.notes) S.notes = ch.notes.newValue || {};
   if (ch.briefDone) S.briefDone = ch.briefDone.newValue || {};
+  if (ch.blockExtra) S.blockExtra = ch.blockExtra.newValue || [];
+  if (ch['draft:stars']) S.draftStars = ch['draft:stars'].newValue || {};
+  if (ch['draft:board']) S.draftBoard = ch['draft:board'].newValue || null;
   if (swapped && !S.syncing && S.raw) rebuild().then(render);
   if (ch['alerts:feed']) S.feed = ch['alerts:feed'].newValue || [];
   if (ch.plans) S.plans = ch.plans.newValue || {};
