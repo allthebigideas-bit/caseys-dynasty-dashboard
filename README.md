@@ -173,6 +173,14 @@ The sidebar on the left has every page. The top bar has search (players and mana
   - **Who drafts well in this league,** and every past rookie draft with what each pick became.
   - **Prospect board:** FantasyPros dynasty rookie rankings when they cover next year's class. Otherwise, paste any ranking list. You can star your guys.
 
+## What changed in 2.25.0
+
+- **Menu:** Season table is now at the top, above Overview. Trade summary moved from Managers to the top of the Trades section, and clicking Trades opens it.
+- **Ribbons:** gold banner ribbons on section titles, tab ribbons on card titles, a corner "YOU" ribbon on your manager card, and a gold marker on your row in tables and on the active menu item.
+- **League art throughout:** the wide artwork frames each page at the edges on big screens, the portrait art rises from the bottom of the sidebar, and each main page gets its own art header (the trophy for Season table, the draft board for Rookie draft and Picks, the slumped trio for Waivers, and so on).
+- **Scroll bars:** slim gold-to-purple scroll bars in both themes.
+- **Motion:** pages ease in and cards lift slightly on hover. Both are switched off if your computer is set to reduce motion.
+
 ## What changed in 2.24.0
 
 - New look to match the league crest: royal purple and trophy gold, with the crest in the sidebar and gold buttons.

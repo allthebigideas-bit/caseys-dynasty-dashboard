@@ -937,3 +937,138 @@ input.labq { width: 100%; }
   .art-txt { width: 100%; }
   .art-banner::before { background: linear-gradient(180deg, rgb(26 6 52 / .25), rgb(26 6 52 / .9)); }
 }
+
+/* ==== Polish: textures, scroll bars, ribbons, motion ============================ */
+
+/* League art as a faded frame: the wide artwork sits fixed behind the page, its
+   open purple middle under the content and the players peeking out at the edges. */
+body::before {
+  content: ""; position: fixed; inset: 0; z-index: -1; pointer-events: none;
+  background: url("../splash/background.jpg") center top / cover no-repeat;
+  opacity: var(--frame-op);
+  -webkit-mask-image: linear-gradient(90deg, #000 0%, rgb(0 0 0 / .55) 22%, transparent 38%, transparent 62%, rgb(0 0 0 / .55) 78%, #000 100%);
+          mask-image: linear-gradient(90deg, #000 0%, rgb(0 0 0 / .55) 22%, transparent 38%, transparent 62%, rgb(0 0 0 / .55) 78%, #000 100%);
+}
+:root, :root[data-theme="dark"] { --frame-op: .32; }
+:root[data-theme="light"] { --frame-op: .16; }
+@media (prefers-color-scheme: light) { :root:not([data-theme="dark"]) { --frame-op: .16; } }
+@media (max-width: 1100px) { body::before { display: none; } }
+.main { position: relative; }
+.card { background: color-mix(in srgb, var(--card) 95%, transparent); }
+
+/* Sidebar: the portrait art rises from the bottom behind the nav, faded out
+   before it reaches the menu. */
+.side { position: relative; isolation: isolate; }
+.side::after {
+  content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 340px; z-index: -1; pointer-events: none;
+  background: url("../splash/background-mobile.jpg") center bottom / 100% auto no-repeat;
+  opacity: var(--side-op);
+  -webkit-mask-image: linear-gradient(0deg, #000 30%, transparent 100%);
+          mask-image: linear-gradient(0deg, #000 30%, transparent 100%);
+}
+:root, :root[data-theme="dark"] { --side-op: .55; }
+:root[data-theme="light"] { --side-op: .35; }
+@media (prefers-color-scheme: light) { :root:not([data-theme="dark"]) { --side-op: .35; } }
+
+/* Page art headers: one crop of the league art per page. */
+.page-art {
+  position: relative; overflow: hidden; height: 112px; margin-bottom: 16px; border-radius: 14px;
+  display: flex; align-items: center; justify-content: flex-end; padding: 0 26px;
+  border: 1px solid rgb(var(--gold-rgb) / .35);
+  background-repeat: no-repeat; background-color: #2a0b52;
+  box-shadow: 0 8px 24px rgb(0 0 0 / .2);
+}
+.page-art::before { content: ""; position: absolute; inset: 0; background: linear-gradient(90deg, rgb(26 6 52 / .05) 0%, rgb(26 6 52 / .5) 50%, rgb(26 6 52 / .9) 78%); }
+.page-art.flip { justify-content: flex-start; }
+.page-art.flip::before { background: linear-gradient(270deg, rgb(26 6 52 / .05) 0%, rgb(26 6 52 / .5) 50%, rgb(26 6 52 / .9) 78%); }
+.page-art .pa-txt { position: relative; color: #fff; text-align: right; }
+.page-art.flip .pa-txt { text-align: left; }
+.page-art .pa-eyebrow { font-size: 10.5px; font-weight: 700; letter-spacing: .16em; text-transform: uppercase; color: #ffd768; }
+.page-art .pa-title { font-size: 24px; font-weight: 800; line-height: 1.1; text-shadow: 0 2px 10px rgb(0 0 0 / .5); }
+.pa-trophy { background-image: url("../splash/hero.jpg"); background-size: 140% auto; background-position: 30% 4%; }
+.pa-winners { background-image: url("../splash/hero.jpg"); background-size: 125% auto; background-position: 0% 24%; }
+.pa-qb { background-image: url("../splash/hero.jpg"); background-size: 150% auto; background-position: 62% 22%; }
+.pa-board { background-image: url("../splash/background.jpg"); background-size: 170% auto; background-position: 100% 46%; }
+.pa-duds { background-image: url("../splash/background.jpg"); background-size: 125% auto; background-position: 100% 80%; }
+.pa-grades { background-image: url("../splash/background.jpg"); background-size: 190% auto; background-position: 86% 86%; }
+@media (max-width: 760px) { .page-art { height: 92px; } .page-art .pa-title { font-size: 19px; } }
+
+/* Scroll bars: slim purple track, gold-to-violet thumb. */
+* { scrollbar-width: thin; scrollbar-color: rgb(var(--gold-rgb) / .7) transparent; }
+::-webkit-scrollbar { width: 11px; height: 11px; }
+::-webkit-scrollbar-track { background: rgb(var(--accent-rgb) / .06); border-radius: 10px; }
+::-webkit-scrollbar-thumb {
+  border-radius: 10px; border: 3px solid transparent; background-clip: padding-box;
+  background-image: linear-gradient(180deg, var(--gold-2), var(--gold) 45%, var(--violet));
+}
+::-webkit-scrollbar-thumb:hover { border-width: 2px; }
+::-webkit-scrollbar-corner { background: transparent; }
+@supports selector(::-webkit-scrollbar) { * { scrollbar-width: auto; scrollbar-color: auto; } }
+
+/* Section ribbons: gold banner with a notched tail and a folded corner tucked
+   behind the card edge. */
+.sec-h h2, h1.page {
+  position: relative; display: inline-flex; align-items: center; gap: 8px;
+  padding: 6px 22px 6px 14px; margin-left: -6px;
+  font-size: 13px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase;
+  color: var(--gold-ink);
+  background: linear-gradient(180deg, var(--gold-2), var(--gold) 55%, #cf8c17);
+  clip-path: polygon(0 0, 100% 0, calc(100% - 10px) 50%, 100% 100%, 0 100%);
+  border-radius: 4px 0 0 4px;
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / .45), inset 0 -2px 0 rgb(0 0 0 / .12);
+  text-shadow: 0 1px 0 rgb(255 255 255 / .35);
+}
+.sec-h h2::after, h1.page::after { content: none; }
+h1.page { font-size: 13px; margin-bottom: 14px; }
+/* Big title on the manager page keeps its own style. */
+.card h1.page { all: unset; display: block; font-size: 22px; font-weight: 700; margin: 2px 0; color: var(--text); }
+
+/* Card titles: a small gold tab ribbon hanging off the left edge. */
+.card > h3 {
+  position: relative; display: flex; align-items: center; gap: 8px;
+  margin-left: -26px; padding: 5px 12px 5px 26px; width: fit-content; max-width: calc(100% + 26px);
+  font-size: 13.5px; font-weight: 700; color: var(--text);
+  background: linear-gradient(90deg, rgb(var(--accent-rgb) / .38), rgb(var(--accent-rgb) / .08) 85%, transparent);
+  border-left: 4px solid var(--gold);
+  border-radius: 0 8px 8px 0;
+}
+.card > h3::before {
+  content: ""; position: absolute; left: -4px; bottom: -6px; width: 0; height: 0;
+  border-top: 6px solid #7a4f08; border-left: 4px solid transparent;
+}
+.card { position: relative; }
+
+/* Corner ribbon on your own manager card and your row in tables. */
+.mgr.me::after {
+  content: "YOU"; position: absolute; top: 12px; right: -30px; width: 110px; text-align: center;
+  transform: rotate(45deg); padding: 3px 0; font-size: 10.5px; font-weight: 800; letter-spacing: .14em;
+  color: var(--gold-ink); background: linear-gradient(180deg, var(--gold-2), var(--gold));
+  box-shadow: 0 2px 8px rgb(0 0 0 / .3);
+}
+.mgr { position: relative; }
+table.t tr.me td:first-child { box-shadow: inset 3px 0 0 var(--gold); }
+
+/* Active nav item: gold marker. */
+.nav a.on { position: relative; border-color: rgb(var(--gold-rgb) / .55); }
+.nav a.on::before { content: ""; position: absolute; left: -1px; top: 8px; bottom: 8px; width: 3px; border-radius: 3px; background: var(--gold); }
+
+/* Motion: pages ease in, cards lift on hover. */
+@keyframes rise { from { opacity: 0; transform: translateY(8px); } }
+#view > * { animation: rise .35s cubic-bezier(.2, .8, .2, 1) both; }
+#view > *:nth-child(2) { animation-delay: .04s; } #view > *:nth-child(3) { animation-delay: .08s; }
+#view > *:nth-child(4) { animation-delay: .12s; } #view > *:nth-child(n+5) { animation-delay: .16s; }
+.card, .mgr, .tile { transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease; }
+.mgr:hover, .tile:hover, .pcard:hover { transform: translateY(-2px); box-shadow: 0 10px 26px rgb(0 0 0 / .22); border-color: rgb(var(--gold-rgb) / .45); }
+.btn { transition: filter .15s ease, transform .1s ease, background .15s ease; }
+.btn:active { transform: translateY(1px); }
+html { scroll-behavior: smooth; }
+
+/* Empty states: trophy emblem. */
+.empty-art { display: flex; flex-direction: column; align-items: center; text-align: center; padding: 26px 10px; color: var(--muted); }
+.empty-art img { width: 120px; height: auto; margin-bottom: 10px; filter: drop-shadow(0 8px 18px rgb(0 0 0 / .3)); }
+
+@media (prefers-reduced-motion: reduce) {
+  #view > * { animation: none; }
+  .mgr:hover, .tile:hover, .pcard:hover { transform: none; }
+  html { scroll-behavior: auto; }
+}

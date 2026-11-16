@@ -223,13 +223,36 @@ function applyTheme(t) {
   if (t === 'auto') delete document.documentElement.dataset.theme; else document.documentElement.dataset.theme = t;
 }
 
+
+// Page art headers: which crop of the league art goes on which page.
+const PAGE_ART = {
+  season: ['pa-trophy', 'The race for the trophy', 'Season table'],
+  summary: ['pa-winners', 'Who won the trade', 'Trade summary'],
+  trades: ['pa-winners', 'Deals and offers', 'Trades'],
+  managers: ['pa-qb', 'Know your rivals', 'Managers'],
+  waivers: ['pa-duds', 'Overnight claims', 'Waivers', 'flip'],
+  draft: ['pa-board', 'Next year starts now', 'Rookie draft', 'flip'],
+  startsit: ['pa-qb', 'This week', 'Start / Sit'],
+  rising: ['pa-winners', 'Coming into their prime', 'Rising players'],
+  positions: ['pa-grades', 'Room by room', 'Positional ranks', 'flip'],
+  demand: ['pa-qb', 'Who wants your guys', 'Demand'],
+  block: ['pa-duds', 'Up for grabs', 'My trade block', 'flip'],
+  picks: ['pa-board', 'Future capital', 'Picks', 'flip'],
+  market: ['pa-winners', 'Risers and fallers', 'Market'],
+};
+function pageArt(page) {
+  const a = PAGE_ART[page];
+  if (!a) return '';
+  return `<div class="page-art ${a[0]} ${a[3] || ''}" role="presentation"><div class="pa-txt"><div class="pa-eyebrow">${esc(a[1])}</div><div class="pa-title">${esc(a[2])}</div></div></div>`;
+}
+
 // ---- shell -----------------------------------------------------------------------------
 
 function route() {
   const h = (location.hash || '#overview').slice(1).split('/');
   return { page: h[0] || 'overview', id: h[1] || null };
 }
-const PAGE_NAMES = { season: 'Season table', form: 'Roster form', block: 'My trade block', draft: 'Rookie draft', overview: 'Overview', summary: 'Manager summary', managers: 'Managers', manager: 'Managers', trades: 'Trades', demand: 'Demand', rising: 'Rising players', positions: 'Positional ranks', startsit: 'Start/Sit', waivers: 'Waivers', picks: 'Picks', compare: 'League compare', tree: 'Trade trees', lopsided: 'Most lopsided trades', branches: 'Most branching trades', market: 'Market', settings: 'Settings' };
+const PAGE_NAMES = { season: 'Season table', form: 'Roster form', block: 'My trade block', draft: 'Rookie draft', overview: 'Overview', summary: 'Trade summary', managers: 'Managers', manager: 'Managers', trades: 'Trades', demand: 'Demand', rising: 'Rising players', positions: 'Positional ranks', startsit: 'Start/Sit', waivers: 'Waivers', picks: 'Picks', compare: 'League compare', tree: 'Trade trees', lopsided: 'Most lopsided trades', branches: 'Most branching trades', market: 'Market', settings: 'Settings' };
 
 function renderSide() {
   const r = route();
@@ -240,17 +263,18 @@ function renderSide() {
   const p = S.raw ? plan() : null;
   const armed = !!(p && p.run);
   const item = (href, ic, label, on, extra = '') => `<a href="${href}" class="${on ? 'on' : ''}">${icon(ic)}<span>${esc(label)}</span>${extra}</a>`;
-  const mgrSub = m && (S.ui.open.managers || r.page === 'manager' || r.page === 'summary' || r.page === 'season') ? `<div class="sub"><a href="#season" class="${r.page === 'season' ? 'on' : ''}">${icon('trophy')}Season table</a><a href="#summary" class="${r.page === 'summary' ? 'on' : ''}">${icon('chart')}Trade summary</a>${[...m.teams].sort((a, b) => b.posture.score - a.posture.score).map((t) => `<a href="#manager/${t.rid}" class="${r.page === 'manager' && Number(r.id) === t.rid ? 'on' : ''}"><span class="dot" style="background:${t.posture.tone === 'buy' ? 'var(--violet)' : t.posture.tone === 'sell' ? 'var(--red)' : 'var(--faint)'}"></span>${esc(t.name)}${t.avoid ? ' ' + icon('note') : ''}</a>`).join('')}</div>` : '';
-  const tradeSub = S.ui.open.trades || r.page === 'trades' ? `<div class="sub">${[['ledger', 'League trades'], ['offers', 'My offers'], ['incoming', 'Offers to you'], ['lab', 'Trade lab'], ['finder', 'Trade finder'], ['week', 'This week']].map(([id, l]) => `<a href="#trades/${id}" class="${r.page === 'trades' && (r.id || 'ledger') === id ? 'on' : ''}">${esc(l)}${id === 'offers' && pend ? ` <span class="pill sell" style="padding:0 6px">${pend}</span>` : ''}</a>`).join('')}</div>` : '';
+  const mgrSub = m && (S.ui.open.managers || r.page === 'manager') ? `<div class="sub">${[...m.teams].sort((a, b) => b.posture.score - a.posture.score).map((t) => `<a href="#manager/${t.rid}" class="${r.page === 'manager' && Number(r.id) === t.rid ? 'on' : ''}"><span class="dot" style="background:${t.posture.tone === 'buy' ? 'var(--violet)' : t.posture.tone === 'sell' ? 'var(--red)' : 'var(--faint)'}"></span>${esc(t.name)}${t.avoid ? ' ' + icon('note') : ''}</a>`).join('')}</div>` : '';
+  const tradeSub = S.ui.open.trades || r.page === 'trades' || r.page === 'summary' ? `<div class="sub"><a href="#summary" class="${r.page === 'summary' ? 'on' : ''}">Trade summary</a>${[['ledger', 'League trades'], ['offers', 'My offers'], ['incoming', 'Offers to you'], ['lab', 'Trade lab'], ['finder', 'Trade finder'], ['week', 'This week']].map(([id, l]) => `<a href="#trades/${id}" class="${r.page === 'trades' && (r.id || 'ledger') === id ? 'on' : ''}">${esc(l)}${id === 'offers' && pend ? ` <span class="pill sell" style="padding:0 6px">${pend}</span>` : ''}</a>`).join('')}</div>` : '';
   $('#side').innerHTML = `
     <a class="logo" href="#overview"><img src="../splash/crest-sm.png" alt=""><span>Casey's<b>Dynasty</b></span></a>
     <div class="switcher">${me ? teamAvatar(me) : '<span class="av">WV</span>'}<div><b>${esc(L ? L.name : 'No league yet')}</b><span>${esc(me ? `${me.teamName || me.name}` : 'Sync to start')}</span></div></div>
     <div class="nav-h">Main</div>
     <nav class="nav">
+      ${item('#season', 'trophy', 'Season table', r.page === 'season')}
       ${item('#overview', 'home', 'Overview', r.page === 'overview')}
-      <a href="#managers" class="${r.page === 'managers' || r.page === 'manager' || r.page === 'summary' || r.page === 'season' ? 'on' : ''}">${icon('users')}<span>Managers</span><span class="chev" data-action="toggleNav" data-group="managers">${icon(S.ui.open.managers || r.page === 'manager' ? 'down' : 'right')}</span></a>
+      <a href="#managers" class="${r.page === 'managers' || r.page === 'manager' ? 'on' : ''}">${icon('users')}<span>Managers</span><span class="chev" data-action="toggleNav" data-group="managers">${icon(S.ui.open.managers || r.page === 'manager' ? 'down' : 'right')}</span></a>
       ${mgrSub}
-      <a href="#trades/ledger" class="${r.page === 'trades' ? 'on' : ''}">${icon('swap')}<span>Trades</span>${pend ? `<span class="badge">${pend}</span>` : `<span class="chev" data-action="toggleNav" data-group="trades">${icon(S.ui.open.trades ? 'down' : 'right')}</span>`}</a>
+      <a href="#summary" class="${r.page === 'trades' || r.page === 'summary' ? 'on' : ''}">${icon('swap')}<span>Trades</span>${pend ? `<span class="badge">${pend}</span>` : `<span class="chev" data-action="toggleNav" data-group="trades">${icon(S.ui.open.trades ? 'down' : 'right')}</span>`}</a>
       ${tradeSub}
       ${item('#block', 'ticket', 'My trade block', r.page === 'block')}
       ${item('#demand', 'flag', 'Demand', r.page === 'demand')}
@@ -356,7 +380,7 @@ function render() {
     console.error(e);
     html = `<div class="notice">This page hit an error: ${esc(e.message)}</div>`;
   }
-  view.innerHTML = notice + html;
+  view.innerHTML = notice + pageArt(r.page) + html;
   if (r.page === 'tree' && r.id && S.ui.tree.view !== 'list') fitTree();
 }
 
