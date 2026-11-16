@@ -269,7 +269,7 @@ function renderSide() {
   const tradeSub = S.ui.open.trades || r.page === 'trades' || r.page === 'summary' ? `<div class="sub"><a href="#summary" class="${r.page === 'summary' ? 'on' : ''}">Trade summary</a>${[['ledger', 'League trades'], ['offers', 'My offers'], ['incoming', 'Offers to you'], ['lab', 'Trade lab'], ['finder', 'Trade finder'], ['week', 'This week']].map(([id, l]) => `<a href="#trades/${id}" class="${r.page === 'trades' && (r.id || 'ledger') === id ? 'on' : ''}">${esc(l)}${id === 'offers' && pend ? ` <span class="pill sell" style="padding:0 6px">${pend}</span>` : ''}</a>`).join('')}</div>` : '';
   $('#side').innerHTML = `
     <a class="logo" href="#overview"><img src="../splash/crest-sm.png" alt=""><span>Casey's<b>Dynasty</b></span></a>
-    <div class="switcher">${me ? teamAvatar(me) : '<span class="av">WV</span>'}<div><b>${esc(L ? L.name : 'No league yet')}</b><span>${esc(me ? `${me.teamName || me.name}` : 'Sync to start')}</span></div></div>
+    <div class="switcher">${me ? teamAvatar(me) : '<span class="av">CD</span>'}<div><b>${esc(L ? L.name : 'No league yet')}</b><span>${esc(me ? `${me.teamName || me.name}` : 'Sync to start')}</span></div></div>
     <div class="nav-h">Main</div>
     <nav class="nav">
       ${item('#season', 'trophy', 'Season table', r.page === 'season')}
