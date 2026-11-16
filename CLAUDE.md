@@ -7,3 +7,13 @@ Chrome MV3 extension (no build step): a dynasty-league dashboard for one Sleeper
 <important if="you are checking a change in a browser">
 Follow `docs/browser-testing.md`.
 </important>
+
+## Agent skills
+
+### Issue tracker
+
+GitHub Issues on the fork `mntropy/caseys-dynasty-dashboard` (PRs still target `allthebigideas-bit`). See `docs/agents/issue-tracker.md`.
+
+### Domain docs
+
+Single-context: `GLOSSARY.md` and `docs/adr/` at the root. See `docs/agents/domain.md`.
