@@ -1,0 +1,79 @@
+/* Splash screen / password gate. To use a background photo, save it as
+   splash/background.jpg. Until then the indigo gradient shows. */
+
+body.gated .app, body.gated #drawer { visibility: hidden; }
+
+#gate {
+  position: fixed; inset: 0; z-index: 1000;
+  display: grid; place-items: center; padding: 24px;
+  background: #17123e;
+  transition: opacity .6s ease;
+}
+#gate.open { opacity: 0; pointer-events: none; }
+
+.gate-bg {
+  position: absolute; inset: 0;
+  background:
+    url("background.jpg") center / cover no-repeat,
+    radial-gradient(1200px 700px at 20% 10%, #3b2a8c 0%, transparent 60%),
+    radial-gradient(900px 600px at 85% 90%, #5b2a6e 0%, transparent 55%),
+    #17123e;
+  transform: scale(1.04);
+  animation: gate-drift 30s ease-in-out infinite alternate;
+}
+.gate-shade {
+  position: absolute; inset: 0;
+  background: linear-gradient(180deg, rgba(23, 18, 62, .35) 0%, rgba(23, 18, 62, .85) 100%);
+}
+@keyframes gate-drift { to { transform: scale(1.1) translate(-1%, -1%); } }
+
+.gate-card {
+  position: relative; width: min(440px, 100%);
+  padding: 36px 34px 28px; text-align: center;
+  background: rgba(18, 14, 48, .62);
+  border: 1px solid rgba(255, 255, 255, .12); border-radius: 20px;
+  backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+  box-shadow: 0 30px 80px rgba(0, 0, 0, .45);
+  animation: gate-in .8s cubic-bezier(.2, .8, .2, 1) both;
+}
+@keyframes gate-in { from { opacity: 0; transform: translateY(14px); } }
+
+.gate-mark { width: 56px; height: 56px; border-radius: 14px; margin-bottom: 14px; }
+.gate-eyebrow {
+  font-size: 11px; font-weight: 600; letter-spacing: .18em; text-transform: uppercase;
+  color: var(--violet-2);
+}
+.gate-card h1 { margin: 8px 0 10px; font-size: 28px; line-height: 1.15; font-weight: 700; letter-spacing: -.01em; }
+.gate-lede { margin: 0 0 8px; color: #d6d3ee; font-size: 14px; }
+.gate-note { margin: 0 0 18px; color: var(--muted); font-size: 12.5px; }
+
+.gate-label { display: block; text-align: left; font-size: 12px; color: var(--muted); margin-bottom: 6px; }
+#gate-pw {
+  width: 100%; padding: 12px 14px; font-size: 15px;
+  background: rgba(255, 255, 255, .06); border: 1px solid rgba(255, 255, 255, .16); border-radius: 10px;
+  outline: none;
+}
+#gate-pw:focus { border-color: var(--violet-2); box-shadow: 0 0 0 3px var(--violet-soft); }
+.gate-err { min-height: 18px; margin: 6px 0 4px; color: var(--red); font-size: 12.5px; text-align: left; }
+
+.gate-card button {
+  width: 100%; padding: 12px; border: 0; border-radius: 10px; cursor: pointer;
+  background: var(--violet); color: #fff; font-weight: 600; font-size: 14.5px;
+  transition: background .15s ease, transform .1s ease;
+}
+.gate-card button:hover { background: #8d70ff; }
+.gate-card button:active { transform: translateY(1px); }
+
+.gate-points {
+  list-style: none; margin: 20px 0 0; padding: 16px 0 0;
+  border-top: 1px solid rgba(255, 255, 255, .1);
+  display: grid; gap: 6px; color: var(--muted); font-size: 12.5px;
+}
+.gate-points li::before { content: "◆"; color: var(--violet-2); font-size: 8px; margin-right: 8px; vertical-align: 2px; }
+
+.gate-card.shake { animation: gate-shake .35s; }
+@keyframes gate-shake { 25% { transform: translateX(-6px); } 75% { transform: translateX(6px); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .gate-bg, .gate-card, .gate-card.shake { animation: none; }
+}
