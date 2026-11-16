@@ -268,6 +268,16 @@ svg.i { width: 18px; height: 18px; flex: none; stroke: currentColor; fill: none;
 .three { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
 @media (max-width: 1180px) { .split { grid-template-columns: 1fr; } }
 @media (max-width: 860px) { .two, .three { grid-template-columns: 1fr; } .app { grid-template-columns: 1fr; } .side { display: none; } .search input { width: 150px; } }
+/* Phones: the top bar wraps instead of pushing the page sideways. Crumbs get
+   the first row, search and buttons share the rest. */
+@media (max-width: 600px) {
+  .top { flex-wrap: wrap; height: auto; padding: 8px 16px; gap: 6px 8px; }
+  .top .crumbs { flex: 1 1 calc(100% - 50px); }
+  .top .spacer { display: none; }
+  .top .search { flex: 1 1 100%; }
+  .top .search input { width: 100%; }
+  .results { width: min(320px, calc(100vw - 32px)); }
+}
 
 h1.page { font-size: 17px; font-weight: 600; margin: 0 0 12px; }
 .sec-h { display: flex; align-items: center; justify-content: space-between; margin: 4px 0 10px; gap: 10px; }
