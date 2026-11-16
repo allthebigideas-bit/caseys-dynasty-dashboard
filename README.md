@@ -173,6 +173,15 @@ The sidebar on the left has every page. The top bar has search (players and mana
   - **Who drafts well in this league,** and every past rookie draft with what each pick became.
   - **Prospect board:** FantasyPros dynasty rookie rankings when they cover next year's class. Otherwise, paste any ranking list. You can star your guys.
 
+## What changed in 2.26.0
+
+- **Export PNG** on Trade summary and Season table: a shareable poster with the league art, crest, a gold title ribbon, award ribbons and a clear table.
+  - Trade summary poster: ranked by net value now (all time), with **Net value now** and **Points gained** called out in gold. Leaves out the "Offers with you" columns. Awards: Best trader, Most points from trades, Busiest dealer and Fleeced.
+  - Season table poster: standings, scoring, projected record and playoff/bye/#1 seed chances with bars, plus a dashed playoff line. Awards: Top seed favourite, Points leader, Toughest luck and Lottery watch.
+- **My offers** now opens with summary tiles, a by-manager table (sent and received, with outcomes and his average ask) and a weekly chart of offers sent versus received, coloured by outcome.
+- Fixed: the sidebar scrolled away with the page and got cut off.
+- Fixed: offers didn't load until sleeper.com was reloaded after installing.
+
 ## What changed in 2.25.0
 
 - **Menu:** Season table is now at the top, above Overview. Trade summary moved from Managers to the top of the Trades section, and clicking Trades opens it.

@@ -1,4 +1,5 @@
 import { gate, lock } from '../splash/gate.js';
+import { downloadPoster } from './poster.js';
 import * as sync from '../lib/sync.js';
 import { buildModel, roundName, ordinal, dateStr, fmtK, dur } from '../lib/intel.js';
 import { ktcVerdict, fcAdjustment, letterGrade, gainPct } from '../lib/ktcmath.js';
@@ -36,6 +37,7 @@ const dateY = (ts) => new Date(ts).toLocaleDateString([], { month: 'short', day:
 // ---- icons ----------------------------------------------------------------------------
 
 const ICONS = {
+  download: '<path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/>',
   sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>',
   moon: '<path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"/>',
   contrast: '<circle cx="12" cy="12" r="9"/><path d="M12 3v18a9 9 0 0 0 0-18z" fill="currentColor"/>',
@@ -628,7 +630,7 @@ function viewSeason() {
       ${m.teams[0].byeOdds != null ? `<td>${oddsCell(r.bye)}</td>` : ''}
       <td>${oddsCell(r.top)}</td>
     </tr>`).join('');
-  return `<div class="sec-h"><h2>Season table</h2><span class="muted small">${n} teams · top ${pN} make the playoffs${m.teams[0].byeOdds != null ? ' · top 2 get a bye' : ''} · regular season ends week ${regEnd}</span></div>
+  return `<div class="sec-h"><h2>Season table</h2><span class="row" style="gap:10px"><button class="btn sm primary" data-action="exportSeason">${icon('download')}Export PNG</button></span></div><div class="row" style="margin:-4px 0 10px"><span class="muted small">${n} teams · top ${pN} make the playoffs${m.teams[0].byeOdds != null ? ' · top 2 get a bye' : ''} · regular season ends week ${regEnd}</span></div>
     <div class="card"><div class="scroll"><table class="t season">
       <thead>
         <tr class="grp-h"><th colspan="3"></th><th colspan="${weeks.length}">Results · faded = projected (small number = % to win)</th><th colspan="5" class="grp">Scoring</th><th colspan="2" class="grp">Strength</th><th colspan="${m.teams[0].byeOdds != null ? 5 : 4}" class="grp">Projection</th></tr>
@@ -809,7 +811,7 @@ function viewSummary() {
   const others = rows.filter((r) => !r.isMe);
   const tot = (key) => others.reduce((s2, r) => s2 + (r[key] || 0), 0);
   const asks = others.filter((r) => r.ask != null);
-  return myOffersCard(m) + `<div class="sec-h" style="margin-top:18px"><h2>Manager summary</h2><button class="toggle ${S.ui.neutral ? 'on' : ''}" data-action="toggleNeutral" title="Hide postures, ease ratings, avoid tags and your notes so you can show this screen to others">Share view <span class="sw"></span></button></div><div class="row" style="margin:-6px 0 12px"><span class="muted small">Click a column to sort. Offer columns only count offers between you and that manager: Sleeper hides other managers' offers to each other.</span></div>
+  return myOffersCard(m) + `<div class="sec-h" style="margin-top:18px"><h2>Manager summary</h2><span class="row" style="gap:10px"><button class="btn sm primary" data-action="exportSummary">${icon('download')}Export PNG</button><button class="toggle ${S.ui.neutral ? 'on' : ''}" data-action="toggleNeutral" title="Hide postures, ease ratings, avoid tags and your notes so you can show this screen to others">Share view <span class="sw"></span></button></span></div><div class="row" style="margin:-6px 0 12px"><span class="muted small">Click a column to sort. Offer columns only count offers between you and that manager: Sleeper hides other managers' offers to each other.</span></div>
   <div class="three" style="margin-bottom:16px">
     <div class="card tile">${icon('swap')}<div class="num">${tot('hisSent')} / ${tot('mySent')}</div><div class="lab">Offers to you / from you</div></div>
     <div class="card tile">${icon('x')}<div class="num">${tot('hisRej')} / ${tot('myRej')}</div><div class="lab">Your offers rejected / offers you rejected</div></div>
@@ -887,6 +889,80 @@ function offersNotice() {
     ? 'Offers need your Sleeper login. Open <b>sleeper.com</b> in this Chrome (or reload the tab if it was already open) while logged in. The dashboard picks it up and refreshes by itself.'
     : esc(g.error || 'Sleeper did not return your offers.');
   return `<div class="notice">${why} <button class="btn sm" data-action="sync" style="margin-left:8px">Sync now</button></div>`;
+}
+
+
+// My offers overview: a per-manager table and a weekly chart, sent vs received.
+function myOffersOverview(m) {
+  const mine = (m.myOffers && m.myOffers.rows) || [];
+  const mineIds = new Set(mine.map((r) => String(r.id)));
+  const recv = [
+    ...m.offers.filter((o) => !o.fromMe).map((o) => ({ rid: o.other, status: o.status, created: o.created })),
+    ...m.leagueTrades.filter((nt) => nt.rids.includes(m.me) && !mineIds.has(String(nt.id))).map((nt) => ({ rid: nt.rids.find((r) => r !== m.me), status: 'complete', created: nt.created })),
+  ];
+  const sent = mine.map((r) => ({ rid: r.rid, status: r.status, created: r.created }));
+  if (!sent.length && !recv.length) return '';
+  const per = {};
+  const add = (list, side) => { for (const e of list) { const x = (per[e.rid] ||= { sent: {}, recv: {}, ns: 0, nr: 0 }); x[side][e.status] = (x[side][e.status] || 0) + 1; side === 'sent' ? x.ns++ : x.nr++; } };
+  add(sent, 'sent'); add(recv, 'recv');
+  const sr = Object.fromEntries(summaryRows().map((r) => [r.rid, r]));
+  const rows = Object.entries(per).map(([rid, x]) => ({ rid: Number(rid), ...x })).filter((r) => team(r.rid)).sort((a, b) => (b.ns + b.nr) - (a.ns + a.nr));
+  const c = (o, k2) => o[k2] || 0;
+  const z = (v, cls = '') => (v ? `<span class="${cls}">${v}</span>` : '<span class="faint">0</span>');
+  const tot = (side, st) => rows.reduce((a, r) => a + c(r[side], st), 0);
+  const askCell = (v) => (v == null ? '<span class="faint">—</span>' : `<span class="${v >= 0.12 ? 'down' : v <= 0 ? 'up' : ''}">${signPct(v)}</span>`);
+  const table = `<div class="scroll"><table class="t">
+    <thead><tr class="grp-h"><th></th><th colspan="5" class="grp">Offers you sent</th><th colspan="5" class="grp">Offers he sent you</th><th class="grp"></th></tr>
+    <tr><th>Manager</th>
+      <th class="num grp">Sent</th><th class="num">Accepted</th><th class="num">Rejected</th><th class="num">Withdrawn</th><th class="num">Waiting</th>
+      <th class="num grp">Received</th><th class="num">You accepted</th><th class="num">You rejected</th><th class="num">Withdrawn</th><th class="num">Waiting</th>
+      <th class="num grp" title="How much more value he asks for than he gives, in offers he sent you">His avg ask</th></tr></thead>
+    <tbody>${rows.map((r) => `<tr>
+      <td><div class="who">${teamAvatar(team(r.rid))}${tlink(r.rid)}</div></td>
+      <td class="num grp"><b>${r.ns}</b></td><td class="num">${z(c(r.sent, 'complete'), 'up')}</td><td class="num">${z(c(r.sent, 'rejected'), 'down')}</td><td class="num">${z(c(r.sent, 'cancelled'))}</td><td class="num">${z(c(r.sent, 'proposed'))}</td>
+      <td class="num grp"><b>${r.nr}</b></td><td class="num">${z(c(r.recv, 'complete'), 'up')}</td><td class="num">${z(c(r.recv, 'rejected'), 'down')}</td><td class="num">${z(c(r.recv, 'cancelled'))}</td><td class="num">${z(c(r.recv, 'proposed'))}</td>
+      <td class="num grp">${askCell(sr[r.rid] && sr[r.rid].ask)}</td></tr>`).join('')}
+      <tr class="me"><td><b>All managers</b></td>
+      <td class="num grp"><b>${sent.length}</b></td><td class="num"><b>${tot('sent', 'complete')}</b></td><td class="num"><b>${tot('sent', 'rejected')}</b></td><td class="num"><b>${tot('sent', 'cancelled')}</b></td><td class="num"><b>${tot('sent', 'proposed')}</b></td>
+      <td class="num grp"><b>${recv.length}</b></td><td class="num"><b>${tot('recv', 'complete')}</b></td><td class="num"><b>${tot('recv', 'rejected')}</b></td><td class="num"><b>${tot('recv', 'cancelled')}</b></td><td class="num"><b>${tot('recv', 'proposed')}</b></td><td class="grp"></td></tr>
+    </tbody></table></div>`;
+
+  // weekly chart: two stacked bars per week (sent, received), coloured by outcome
+  const WEEK = 7 * 86400e3;
+  const all = [...sent, ...recv];
+  const monday = (t) => { const d = new Date(t); d.setHours(0, 0, 0, 0); d.setDate(d.getDate() - ((d.getDay() + 6) % 7)); return d.getTime(); };
+  const last = monday(Date.now());
+  const first = Math.max(monday(Math.min(...all.map((e) => e.created))), last - 19 * WEEK);
+  const weeks = [];
+  for (let t = first; t <= last; t += WEEK) weeks.push(t);
+  const ORDER = [['complete', 'var(--green)', 'Accepted'], ['rejected', 'var(--red)', 'Rejected'], ['cancelled', 'var(--faint)', 'Withdrawn'], ['proposed', 'var(--gold)', 'Waiting']];
+  const bucket = (list, w) => { const o = {}; for (const e of list) if (monday(e.created) === w) o[e.status] = (o[e.status] || 0) + 1; return o; };
+  const data = weeks.map((w) => ({ w, s: bucket(sent, w), r: bucket(recv, w) }));
+  const sum = (o) => Object.values(o).reduce((a, b) => a + b, 0);
+  const max = Math.max(1, ...data.map((d) => Math.max(sum(d.s), sum(d.r))));
+  const VW = 1200, VH = 250, L = 34, B = 34, T = 12, plotH = VH - B - T, slot = (VW - L - 10) / weeks.length, bw = Math.min(16, slot / 2 - 3);
+  const stack = (o, x, opacity) => { let y = VH - B; return ORDER.map(([st, col, lab]) => { const n = o[st] || 0; if (!n) return ''; const h = (n / max) * plotH; y -= h; return `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${bw.toFixed(1)}" height="${h.toFixed(1)}" rx="2" fill="${col}" opacity="${opacity}"><title>${lab}: ${n}</title></rect>`; }).join(''); };
+  const ticks = Array.from(new Set([0, Math.ceil(max / 2), max])).map((v) => { const y = VH - B - (v / max) * plotH; return `<line x1="${L}" x2="${VW - 6}" y1="${y}" y2="${y}" stroke="var(--line)" stroke-dasharray="3 4"/><text x="${L - 8}" y="${y + 4}" text-anchor="end" font-size="11" fill="var(--muted)">${v}</text>`; }).join('');
+  const bars = data.map((d, i) => {
+    const x0 = L + i * slot + slot / 2;
+    const lab = i % Math.ceil(weeks.length / 10) === 0 ? `<text x="${x0}" y="${VH - 12}" text-anchor="middle" font-size="11" fill="var(--muted)">${esc(new Date(d.w).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }))}</text>` : '';
+    return stack(d.s, x0 - bw - 1, 1) + stack(d.r, x0 + 1, 0.55) + lab;
+  }).join('');
+  const chart = `<svg viewBox="0 0 ${VW} ${VH}" width="100%" role="img" aria-label="Offers per week, sent and received">${ticks}${bars}</svg>
+    <div class="row" style="gap:14px;flex-wrap:wrap;margin-top:6px">${ORDER.map(([, col, lab]) => `<span class="small muted"><i style="display:inline-block;width:10px;height:10px;border-radius:2px;background:${col};margin-right:6px;vertical-align:-1px"></i>${lab}</span>`).join('')}
+    <span class="small muted">Left bar each week: offers you sent. Right, lighter bar: offers sent to you.</span></div>`;
+
+  const decided = tot('sent', 'complete') + tot('sent', 'rejected');
+  const rDecided = tot('recv', 'complete') + tot('recv', 'rejected');
+  return `<div class="sec-h"><h2>Offers at a glance</h2><span class="muted small">Every offer between you and each manager this season</span></div>
+    <div class="four" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px;margin-bottom:16px">
+      <div class="card tile hot">${icon('swap')}<div class="num">${sent.length}</div><div class="lab">Offers you sent</div></div>
+      <div class="card tile">${icon('check')}<div class="num">${decided ? pct(tot('sent', 'complete') / decided) : '—'}</div><div class="lab">Of yours accepted (of those answered)</div></div>
+      <div class="card tile">${icon('bell')}<div class="num">${recv.length}</div><div class="lab">Offers sent to you</div></div>
+      <div class="card tile">${icon('check')}<div class="num">${rDecided ? pct(tot('recv', 'complete') / rDecided) : '—'}</div><div class="lab">Of theirs you accepted</div></div>
+    </div>
+    <div class="card" style="margin-bottom:14px"><h3>By manager</h3>${table}</div>
+    <div class="card" style="margin-bottom:16px"><h3>Offers per week</h3>${chart}</div>`;
 }
 
 function myOffersCard(m) {
@@ -1877,7 +1953,7 @@ function viewTrades(sub) {
   const scaleNote = '<p class="lede">Grades use each side\'s share of the combined value, with KTC\'s value adjustment for uneven deals. Within ±5% is a fair B. A+ and F are for blowouts (one side getting more than twice as much). "At trade" grades use values from the week of the trade (KTC itself for trades under 10 days old); "today" is hindsight with today\'s KTC values. KTC adds a bonus to the side that receives the best single player, so when two players swap places in value the grades can flip.</p>';
   if (sub === 'offers') {
     const note = S.raw.gql && !S.raw.gql.ok ? `<div class="notice">${esc(S.raw.gql.error || 'Offers could not be read.')}</div>` : '';
-    return nav + `<div class="card"><h3>Offers you sent and received</h3>${note}${scaleNote}${m.offers.length ? m.offers.map(tradeCard).join('') : '<p class="muted">No offers on record.</p>'}</div>`;
+    return nav + offersNotice() + myOffersOverview(m) + `<div class="card"><h3>Every offer</h3>${scaleNote}${m.offers.length ? m.offers.map(tradeCard).join('') : '<p class="muted">No offers on record.</p>'}</div>`;
   }
   if (sub === 'lab') return nav + viewLab();
   if (sub === 'incoming') return nav + viewIncoming();
@@ -2960,6 +3036,140 @@ function viewMarket() {
 }
 
 
+
+// ---- PNG posters ------------------------------------------------------------------------------
+const POSTER = { good: '#5fe39a', bad: '#ff8a8a', muted: '#8f7bb6' };
+const avatarUrl = (t) => (t && (t.logo || (t.avatar ? `https://sleepercdn.com/avatars/thumbs/${t.avatar}` : ''))) || '';
+const sgn = (v, f) => `${v > 0 ? '+' : v < 0 ? '−' : ''}${f(Math.abs(v))}`;
+const netC = (v, has = true) => (!has ? { text: '—', color: POSTER.muted } : { text: sgn(v, k), color: v > 250 ? POSTER.good : v < -250 ? POSTER.bad : '#c4b3e6' });
+const ptsC = (v, has = true) => (!has ? { text: '—', color: POSTER.muted } : { text: sgn(Math.round(v), (x) => String(x)), color: v > 10 ? POSTER.good : v < -10 ? POSTER.bad : '#c4b3e6' });
+const leagueName = () => (S.raw && S.raw.league && S.raw.league.name) || "Casey's Dynasty League";
+const fileStamp = () => `${(S.model && S.model.league.season) || ''}-wk${(S.model && S.model.league.week) || ''}`;
+
+function tradeSummaryPoster() {
+  const m = S.model;
+  const rows = summaryRows().sort((a, b) => b.allNow - a.allNow);
+  const has = (r) => r.trades + r.histTrades > 0;
+  const traded = rows.filter(has);
+  const best = traded[0], worst = traded[traded.length - 1];
+  const mostPts = [...traded].sort((a, b) => b.allPts - a.allPts)[0];
+  const busiest = [...rows].sort((a, b) => (b.trades + b.histTrades) - (a.trades + a.histTrades))[0];
+  const awards = [
+    best && { label: 'Best trader', name: best.name, avatar: avatarUrl(best.t), stat: `${sgn(best.allNow, k)} net value now` },
+    mostPts && { label: 'Most points from trades', name: mostPts.name, avatar: avatarUrl(mostPts.t), stat: `${sgn(Math.round(mostPts.allPts), String)} starter points` },
+    busiest && { label: 'Busiest dealer', name: busiest.name, avatar: avatarUrl(busiest.t), stat: `${busiest.trades + busiest.histTrades} trades` },
+    worst && worst !== best && { label: 'Fleeced', gloom: true, name: worst.name, avatar: avatarUrl(worst.t), stat: `${sgn(worst.allNow, k)} net value now` },
+  ].filter(Boolean);
+  return {
+    file: `caseys-trade-summary-${fileStamp()}.png`,
+    title: 'Trade summary', eyebrow: leagueName(),
+    subtitle: `Who won the trades · week ${m.league.week}, ${m.league.season}`,
+    awards,
+    groups: [
+      { label: '', cols: [{ key: '#', label: '#', w: 70, align: 'center' }, { key: 'name', label: 'Manager', align: 'left' }] },
+      { label: 'This season', cols: [
+        { key: 'trades', label: 'Trades', w: 80 },
+        { key: 'curNow', label: 'Net value now', sub: 'KTC, today', w: 150 },
+        { key: 'curPts', label: 'Points +/−', sub: 'starter pts', w: 125 },
+      ] },
+      { label: 'Earlier seasons', cols: [
+        { key: 'histTrades', label: 'Trades', w: 80 },
+        { key: 'oldNow', label: 'Net value now', sub: 'KTC, today', w: 150 },
+        { key: 'oldPts', label: 'Points +/−', sub: 'starter pts', w: 125 },
+      ] },
+      { label: 'All time', hero: true, cols: [
+        { key: 'allNow', label: 'Net value now', sub: 'received − given, KTC today', w: 200, hero: true },
+        { key: 'allPts', label: 'Points gained', sub: 'starter pts from trades', w: 180, hero: true },
+      ] },
+      { label: 'Roster', cols: [{ key: 'value', label: 'Team value', sub: 'KTC', w: 120 }] },
+    ],
+    rows: rows.map((r) => ({
+      name: r.name, sub: r.t.teamName && r.t.teamName !== r.name ? r.t.teamName : '', avatar: avatarUrl(r.t), isMe: r.isMe,
+      cells: {
+        trades: { text: String(r.trades) }, curNow: netC(r.curNow, r.trades > 0), curPts: ptsC(r.curPts, r.trades > 0),
+        histTrades: { text: String(r.histTrades) }, oldNow: netC(r.oldNow, r.histTrades > 0), oldPts: ptsC(r.oldPts, r.histTrades > 0),
+        allNow: { ...netC(r.allNow, has(r)), bold: true }, allPts: { ...ptsC(r.allPts, has(r)), bold: true },
+        value: { text: k(r.value), color: '#e9dcff' },
+      },
+    })),
+    notes: [
+      'Net value now: everything a manager received minus everything he gave, at today\'s KeepTradeCut values (used picks count as the player drafted).',
+      'Points +/−: starter points scored for him by players he got, minus starter points scored for others by players he sent away.',
+    ],
+    footLabel: worst && worst !== best ? { title: 'Rough trading', text: `${worst.name}: ${sgn(worst.allNow, k)} in value given away` } : null,
+  };
+}
+
+function seasonPoster() {
+  const m = S.model;
+  const pN = m.league.playoffTeams || 6;
+  const hasBye = m.teams[0].byeOdds != null;
+  const sorted = [...m.teams].sort((a, b) => b.w - a.w || b.pf - a.pf);
+  const streak = (t) => { const r = t.results || []; if (!r.length) return ''; const last = r[r.length - 1].res; let c = 0; for (let i = r.length - 1; i >= 0 && r[i].res === last; i--) c++; return `${last}${c}`; };
+  const oddsC = (v, hero) => (v == null || v < 0 ? { text: '—', color: POSTER.muted } : { text: pct(v), bar: v, color: v >= 0.75 ? '#2fc66b' : v <= 0.25 ? '#f05a5a' : hero ? '#f2b632' : '#f2a541' });
+  const byTop = [...m.teams].filter((t) => t.topOdds != null || t.seedOdds).sort((a, b) => (b.seedOdds ? b.seedOdds[0] : 0) - (a.seedOdds ? a.seedOdds[0] : 0))[0];
+  const pfLead = [...m.teams].sort((a, b) => b.pf - a.pf)[0];
+  const unlucky = [...m.teams].sort((a, b) => (b.pa || 0) - (a.pa || 0))[0];
+  const last = sorted[sorted.length - 1];
+  const awards = [
+    byTop && byTop.seedOdds && { label: 'Top seed favourite', name: byTop.name, avatar: avatarUrl(byTop), stat: `${pct(byTop.seedOdds[0])} to finish 1st` },
+    pfLead && { label: 'Points leader', name: pfLead.name, avatar: avatarUrl(pfLead), stat: `${Math.round(pfLead.pf)} points for` },
+    unlucky && { label: 'Toughest luck', name: unlucky.name, avatar: avatarUrl(unlucky), stat: `${Math.round(unlucky.pa || 0)} points against` },
+    last && { label: 'Lottery watch', gloom: true, name: last.name, avatar: avatarUrl(last), stat: `${last.w}-${last.l} · ${pct(last.playoffOdds)} playoff odds` },
+  ].filter(Boolean);
+  const projCols = [
+    { key: 'proj', label: 'Proj. record', sub: 'rest of season', w: 140, hero: true },
+    { key: 'odds', label: 'Playoffs', sub: 'chance', w: 190, hero: true },
+    ...(hasBye ? [{ key: 'bye', label: 'Bye', sub: 'top 2', w: 150 }] : []),
+    { key: 'top', label: '#1 seed', sub: 'chance', w: 150 },
+  ];
+  return {
+    file: `caseys-season-table-${fileStamp()}.png`,
+    title: 'Season table', eyebrow: leagueName(),
+    subtitle: `Standings after week ${Math.max(0, m.league.week - 1)} · top ${pN} make the playoffs`,
+    awards,
+    groups: [
+      { label: '', cols: [{ key: '#', label: '#', w: 70, align: 'center' }, { key: 'name', label: 'Team', align: 'left' }] },
+      { label: 'Record', cols: [{ key: 'rec', label: 'W-L', w: 90 }, { key: 'streak', label: 'Streak', w: 84 }] },
+      { label: 'Scoring', cols: [
+        { key: 'pf', label: 'PF', sub: 'points for', w: 96 }, { key: 'pa', label: 'PA', sub: 'against', w: 96 },
+        { key: 'maxpf', label: 'Max PF', sub: 'best lineup', w: 106 }, { key: 'ap', label: 'All-play', sub: 'vs everyone', w: 110 },
+      ] },
+      { label: 'Projection', hero: true, cols: projCols },
+    ],
+    rows: sorted.map((t, i) => {
+      const games = t.w + t.l + (t.t || 0), left = t.remaining ? t.remaining.length : 0;
+      const projW = t.expWins != null ? t.expWins : t.w;
+      const sk = streak(t);
+      return {
+        name: t.name, sub: t.teamName && t.teamName !== t.name ? t.teamName : '', avatar: avatarUrl(t), isMe: t.isMe, cutAfter: i === pN - 1 && i < sorted.length - 1,
+        cells: {
+          rec: { text: `${t.w}-${t.l}${t.t ? '-' + t.t : ''}`, bold: true },
+          streak: { text: sk || '—', color: sk.startsWith('W') ? POSTER.good : sk.startsWith('L') ? POSTER.bad : POSTER.muted },
+          pf: { text: String(Math.round(t.pf)) }, pa: { text: String(Math.round(t.pa || 0)), color: '#c4b3e6' },
+          maxpf: { text: t.maxPf ? String(Math.round(t.maxPf)) : '—', color: '#c4b3e6' },
+          ap: { text: t.allPlay ? `${t.allPlay.w}-${t.allPlay.l}` : '—', color: '#c4b3e6' },
+          proj: { text: `${projW.toFixed(1)}-${(games + left - projW).toFixed(1)}`, bold: true },
+          odds: oddsC(t.playoffOdds, true), bye: oddsC(t.byeOdds), top: oddsC(t.seedOdds ? t.seedOdds[0] : null),
+        },
+      };
+    }),
+    notes: [
+      'Projections play out the rest of the regular season 3,000 times, with every team starting its best healthy lineup.',
+      'All-play: the record a team would have if it played every other team every week.',
+    ],
+    footLabel: last ? { title: 'Draft lottery watch', text: `${last.name} (${last.w}-${last.l})` } : null,
+  };
+}
+
+async function exportPoster(el, build) {
+  if (!S.model) return;
+  const label = el ? el.innerHTML : '';
+  if (el) { el.disabled = true; el.textContent = 'Drawing…'; }
+  try { await downloadPoster(build()); } catch (e) { console.error(e); S.error = `Couldn't make the image: ${e.message}`; render(); }
+  finally { if (el) { el.disabled = false; el.innerHTML = label; } }
+}
+
 // ---- your team picker -----------------------------------------------------------------------
 
 const loginId = () => (S.auth && S.auth.userId ? String(S.auth.userId) : '');
@@ -3321,6 +3531,8 @@ const actions = {
     await runSync();
   },
   async lockGate() { await lock(); },
+  exportSummary(el) { return exportPoster(el, tradeSummaryPoster); },
+  exportSeason(el) { return exportPoster(el, seasonPoster); },
   async saveSettings() {
     const username = ($('#cfg-username') || {}).value || '';
     const leagueId = S.cfg.leagueId || '';
