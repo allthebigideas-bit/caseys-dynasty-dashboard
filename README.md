@@ -42,7 +42,7 @@ This is a soft lock to keep the dashboard private to the league. It is not real 
 
 ## Splash background
 
-To use a background photo on the password screen, save it as `splash/background.jpg`. Until then it shows an indigo gradient.
+The password screen uses `splash/background.jpg` and the league crest `splash/crest.png`. Replace either file to change the look. The toolbar icons in `icons/` are made from the crest.
 
 If Settings says KeepTradeCut is unavailable, open keeptradecut.com once in this Chrome, then click **Sync now**. Until then the dossier grades with FantasyCalc values.
 

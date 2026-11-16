@@ -1,78 +1,89 @@
-/* Splash screen / password gate. To use a background photo, save it as
-   splash/background.jpg. Until then the indigo gradient shows. */
+/* Splash screen / password gate: the league crest over the glory-and-gloom
+   background, with a centred password field and gold button. */
 
 body.gated .app, body.gated #drawer { visibility: hidden; }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 
 #gate {
   position: fixed; inset: 0; z-index: 1000;
   display: grid; place-items: center; padding: 24px;
-  background: #17123e;
+  background: #3d0a6e;
   transition: opacity .6s ease;
 }
 #gate.open { opacity: 0; pointer-events: none; }
 
 .gate-bg {
   position: absolute; inset: 0;
-  background:
-    url("background.jpg") center / cover no-repeat,
-    radial-gradient(1200px 700px at 20% 10%, #3b2a8c 0%, transparent 60%),
-    radial-gradient(900px 600px at 85% 90%, #5b2a6e 0%, transparent 55%),
-    #17123e;
-  transform: scale(1.04);
-  animation: gate-drift 30s ease-in-out infinite alternate;
+  background: url("background.jpg") center / cover no-repeat, #3d0a6e;
+  animation: gate-drift 40s ease-in-out infinite alternate;
 }
+/* Darken the open middle so the form reads, leave the art at the sides bright. */
 .gate-shade {
   position: absolute; inset: 0;
-  background: linear-gradient(180deg, rgba(23, 18, 62, .35) 0%, rgba(23, 18, 62, .85) 100%);
+  background: radial-gradient(ellipse 34% 60% at 50% 52%, rgba(34, 6, 64, .55) 0%, rgba(34, 6, 64, 0) 100%);
 }
-@keyframes gate-drift { to { transform: scale(1.1) translate(-1%, -1%); } }
+@keyframes gate-drift { from { transform: scale(1.02); } to { transform: scale(1.07); } }
 
 .gate-card {
-  position: relative; width: min(440px, 100%);
-  padding: 36px 34px 28px; text-align: center;
-  background: rgba(18, 14, 48, .62);
-  border: 1px solid rgba(255, 255, 255, .12); border-radius: 20px;
-  backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
-  box-shadow: 0 30px 80px rgba(0, 0, 0, .45);
+  position: relative; width: min(360px, 100%);
+  display: flex; flex-direction: column; align-items: center;
   animation: gate-in .8s cubic-bezier(.2, .8, .2, 1) both;
 }
-@keyframes gate-in { from { opacity: 0; transform: translateY(14px); } }
+@keyframes gate-in { from { opacity: 0; transform: translateY(16px); } }
 
-.gate-mark { width: 56px; height: 56px; border-radius: 14px; margin-bottom: 14px; }
-.gate-eyebrow {
-  font-size: 11px; font-weight: 600; letter-spacing: .18em; text-transform: uppercase;
-  color: var(--violet-2);
+.gate-crest {
+  width: min(250px, 62vw); height: auto; margin-bottom: 22px;
+  filter: drop-shadow(0 12px 30px rgba(0, 0, 0, .55));
 }
-.gate-card h1 { margin: 8px 0 10px; font-size: 28px; line-height: 1.15; font-weight: 700; letter-spacing: -.01em; }
-.gate-lede { margin: 0 0 8px; color: #d6d3ee; font-size: 14px; }
-.gate-note { margin: 0 0 18px; color: var(--muted); font-size: 12.5px; }
 
-.gate-label { display: block; text-align: left; font-size: 12px; color: var(--muted); margin-bottom: 6px; }
+.gate-field {
+  position: relative; width: 100%; display: flex; align-items: center;
+  border-radius: 999px;
+  background: rgba(98, 44, 150, .55);
+  border: 1px solid rgba(214, 170, 255, .35);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .08), 0 8px 24px rgba(0, 0, 0, .25);
+  backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+  transition: border-color .15s ease, box-shadow .15s ease;
+}
+.gate-field:focus-within { border-color: #f2c14e; box-shadow: 0 0 0 3px rgba(242, 193, 78, .25), 0 8px 24px rgba(0, 0, 0, .25); }
+.gate-field > svg, .gate-eye svg {
+  width: 20px; height: 20px; fill: none; stroke: #e9dcff; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round;
+}
+.gate-field > svg { position: absolute; left: 18px; pointer-events: none; }
 #gate-pw {
-  width: 100%; padding: 12px 14px; font-size: 15px;
-  background: rgba(255, 255, 255, .06); border: 1px solid rgba(255, 255, 255, .16); border-radius: 10px;
-  outline: none;
+  flex: 1; min-width: 0; padding: 14px 48px 14px 50px;
+  background: transparent; border: 0; outline: none;
+  font-size: 16px; color: #fff;
 }
-#gate-pw:focus { border-color: var(--violet-2); box-shadow: 0 0 0 3px var(--violet-soft); }
-.gate-err { min-height: 18px; margin: 6px 0 4px; color: var(--red); font-size: 12.5px; text-align: left; }
+#gate-pw::placeholder { color: rgba(233, 220, 255, .75); }
+.gate-eye {
+  position: absolute; right: 10px; padding: 6px; border: 0; background: none; cursor: pointer; border-radius: 50%;
+  display: grid; place-items: center; opacity: .8;
+}
+.gate-eye:hover, .gate-eye.on { opacity: 1; }
+.gate-eye.on svg { stroke: #f2c14e; }
 
-.gate-card button {
-  width: 100%; padding: 12px; border: 0; border-radius: 10px; cursor: pointer;
-  background: var(--violet); color: #fff; font-weight: 600; font-size: 14.5px;
-  transition: background .15s ease, transform .1s ease;
-}
-.gate-card button:hover { background: #8d70ff; }
-.gate-card button:active { transform: translateY(1px); }
+.gate-err { min-height: 20px; margin: 8px 0 6px; color: #ffb4b4; font-size: 13px; text-shadow: 0 1px 4px rgba(0, 0, 0, .6); }
 
-.gate-points {
-  list-style: none; margin: 20px 0 0; padding: 16px 0 0;
-  border-top: 1px solid rgba(255, 255, 255, .1);
-  display: grid; gap: 6px; color: var(--muted); font-size: 12.5px;
+.gate-go {
+  width: 100%; padding: 14px; border: 0; border-radius: 999px; cursor: pointer;
+  background: linear-gradient(180deg, #ffd768 0%, #f2b632 55%, #d9951c 100%);
+  color: #1b1030; font-weight: 700; font-size: 18px; letter-spacing: .01em;
+  box-shadow: 0 0 0 1px rgba(255, 226, 140, .6) inset, 0 10px 28px rgba(242, 182, 50, .35);
+  transition: filter .15s ease, transform .1s ease;
 }
-.gate-points li::before { content: "◆"; color: var(--violet-2); font-size: 8px; margin-right: 8px; vertical-align: 2px; }
+.gate-go:hover { filter: brightness(1.07); }
+.gate-go:active { transform: translateY(1px); }
+
+.gate-hint { margin: 18px 0 0; color: #dcc8ff; font-size: 13px; text-shadow: 0 1px 4px rgba(0, 0, 0, .6); }
 
 .gate-card.shake { animation: gate-shake .35s; }
-@keyframes gate-shake { 25% { transform: translateX(-6px); } 75% { transform: translateX(6px); } }
+@keyframes gate-shake { 25% { transform: translateX(-8px); } 75% { transform: translateX(8px); } }
+
+/* Narrow or tall windows: the art fills the screen, so add a backing to the form. */
+@media (max-aspect-ratio: 4/3) {
+  .gate-shade { background: linear-gradient(180deg, rgba(34, 6, 64, .35), rgba(34, 6, 64, .8)); }
+}
 
 @media (prefers-reduced-motion: reduce) {
   .gate-bg, .gate-card, .gate-card.shake { animation: none; }

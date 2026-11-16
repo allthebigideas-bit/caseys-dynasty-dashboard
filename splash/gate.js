@@ -34,25 +34,29 @@ export async function gate() {
     <div class="gate-bg" aria-hidden="true"></div>
     <div class="gate-shade" aria-hidden="true"></div>
     <form class="gate-card" autocomplete="off">
-      <img class="gate-mark" src="../icons/icon128.png" alt="">
-      <div class="gate-eyebrow">Private preview</div>
-      <h1>Casey's Dynasty Dashboard</h1>
-      <p class="gate-lede">A scouting file on every manager in the league: graded trades, who's tanking, who wants your players, and what to do this week.</p>
-      <p class="gate-note">For league members only. Enter the password from your invite.</p>
-      <label class="gate-label" for="gate-pw">League password</label>
-      <input id="gate-pw" type="password" required autofocus>
+      <img class="gate-crest" src="../splash/crest.png" alt="Casey's Dynasty League, fantasy football">
+      <h1 class="sr-only">Casey's Dynasty Dashboard</h1>
+      <div class="gate-field">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/><circle cx="12" cy="16" r="1.2"/></svg>
+        <input id="gate-pw" type="password" placeholder="League password" aria-label="League password" required>
+        <button type="button" class="gate-eye" aria-label="Show password"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg></button>
+      </div>
       <div class="gate-err" role="alert"></div>
-      <button type="submit">Open the dashboard</button>
-      <ul class="gate-points">
-        <li>Loads your own team when you're logged in to Sleeper</li>
-        <li>Every trade graded, every manager profiled</li>
-        <li>Runs in your browser; nothing is shared</li>
-      </ul>
+      <button type="submit" class="gate-go">Log In</button>
+      <p class="gate-hint">Forgot it? Ask the commissioner.</p>
     </form>`;
   document.body.appendChild(el);
   const form = el.querySelector('form');
   const input = el.querySelector('#gate-pw');
   const err = el.querySelector('.gate-err');
+  const eye = el.querySelector('.gate-eye');
+  eye.addEventListener('click', () => {
+    const show = input.type === 'password';
+    input.type = show ? 'text' : 'password';
+    eye.classList.toggle('on', show);
+    eye.setAttribute('aria-label', show ? 'Hide password' : 'Show password');
+    input.focus();
+  });
   setTimeout(() => input.focus(), 50);
   await new Promise((resolve) => {
     form.addEventListener('submit', async (e) => {
