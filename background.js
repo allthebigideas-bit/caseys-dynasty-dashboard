@@ -48,6 +48,7 @@ async function injectIntoOpenSleeperTabs() {
 }
 
 chrome.runtime.onInstalled.addListener(async () => {
+  await sleeper.getAuth(); // repairs a login saved with a rounded user ID
   await installRules();
   injectIntoOpenSleeperTabs();
   await engine.ensureAlarm();
