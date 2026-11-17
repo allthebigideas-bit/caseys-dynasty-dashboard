@@ -2834,7 +2834,7 @@ const rankTh = (st, action, key, label, title = '', extra = '') => `<th class="n
 function splitDonut(pct, title = '') {
   if (pct == null) return '<span class="faint">—</span>';
   const r = 14, c = 2 * Math.PI * r, on = Math.max(0, Math.min(100, pct)) / 100 * c;
-  return `<svg class="donut" viewBox="0 0 36 36" width="40" height="40" role="img" aria-label="${pct}% / ${100 - pct}%"><title>${esc(title || `${pct}% / ${100 - pct}%`)}</title>
+  return `<svg class="sdonut" viewBox="0 0 36 36" width="40" height="40" role="img" aria-label="${pct}% / ${100 - pct}%"><title>${esc(title || `${pct}% / ${100 - pct}%`)}</title>
     <circle cx="18" cy="18" r="${r}" class="dn-off"/><circle cx="18" cy="18" r="${r}" class="dn-on" stroke-dasharray="${on.toFixed(2)} ${(c - on).toFixed(2)}" transform="rotate(-90 18 18)"/>
     <text x="18" y="18" class="dn-t">${pct}%</text></svg>`;
 }
