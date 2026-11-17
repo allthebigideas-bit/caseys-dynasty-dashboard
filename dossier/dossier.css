@@ -278,6 +278,10 @@ svg.i { width: 18px; height: 18px; flex: none; stroke: currentColor; fill: none;
   .top .search input { width: 100%; }
   .results { width: min(320px, calc(100vw - 32px)); }
 }
+/* The top bar is sticky and two rows tall on phones: keep items you tab or jump
+   to from landing underneath it. */
+html { scroll-padding-top: 76px; }
+@media (max-width: 600px) { html { scroll-padding-top: 136px; } }
 
 h1.page { font-size: 17px; font-weight: 600; margin: 0 0 12px; }
 .sec-h { display: flex; align-items: center; justify-content: space-between; margin: 4px 0 10px; gap: 10px; }
@@ -475,11 +479,11 @@ textarea.note { width: 100%; min-height: 96px; resize: vertical; background: var
 .trade { padding: 14px 0; border-top: 1px solid var(--line); }
 .trade:first-of-type { border-top: 0; padding-top: 4px; }
 .trade .meta { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; color: var(--muted); font-size: 12px; margin-bottom: 10px; }
-.trade .sides { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; }
+.trade .sides { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(260px, 100%), 1fr)); gap: 12px; }
 .tside { background: var(--card-2); border: 1px solid var(--line); border-radius: 10px; padding: 12px; }
-.tside .hd { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+.tside .hd { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; flex-wrap: wrap; min-width: 0; }
 .tside .hd b { font-weight: 600; }
-.tside .hd .grades { margin-left: auto; display: flex; gap: 6px; align-items: center; }
+.tside .hd .grades { margin-left: auto; display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
 .asset { display: flex; align-items: center; gap: 10px; padding: 5px 0; }
 .asset .nm { flex: 1; min-width: 0; }
 .asset .nm b { font-weight: 500; }
@@ -515,7 +519,8 @@ input[type=text], input[type=time], input[type=number], select {
   background: var(--card-2); border: 1px solid var(--line-2); border-radius: 8px; padding: 6px 9px; font-size: 13px;
 }
 input[type=number] { width: 80px; }
-label.f { display: grid; gap: 4px; font-size: 12px; color: var(--muted); }
+label.f { display: grid; gap: 4px; font-size: 12px; color: var(--muted); min-width: 0; }
+label.f > input, label.f > select { min-width: 0; max-width: 100%; }
 .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
 .list { max-height: 360px; overflow: auto; border: 1px solid var(--line); border-radius: 10px; }
 .list .it { display: flex; align-items: center; gap: 10px; padding: 7px 10px; border-bottom: 1px solid var(--line); }

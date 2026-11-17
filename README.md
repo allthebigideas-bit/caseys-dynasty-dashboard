@@ -181,6 +181,11 @@ The sidebar on the left has every page. The top bar has search (players and mana
 - Waiver notifications now say "Casey's Dynasty Dashboard" instead of "Waiver Vulture", so they can't be mixed up with a personal Waiver Vulture install.
 - First automated tests (trade grades, aging curves, the "is this my team" check). Run them with `npm test`. They also run on GitHub for every push.
 
+## What changed in 2.26.3
+
+- Phones: Settings and League trades no longer spill sideways at narrow widths, and items you tab or jump to no longer hide under the sticky top bar.
+- The account swap (two members on one computer) moved to `lib/accounts.js`, with a test that logs in as A, then B, then A again.
+
 ## What changed in 2.26.0
 
 - **Export PNG** on Trade summary and Season table: a shareable poster with the league art, crest, a gold title ribbon, award ribbons and a clear table.

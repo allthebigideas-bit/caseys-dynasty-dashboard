@@ -2,6 +2,7 @@
 // and the dossier's background watcher.
 
 import { store, log, normName, bestMatch } from './lib/util.js';
+import { swapAccount } from './lib/accounts.js';
 import * as sleeper from './lib/sleeper.js';
 import * as engine from './lib/engine.js';
 import * as alerts from './lib/alerts.js';
@@ -83,21 +84,6 @@ chrome.notifications.onClicked.addListener((id) => {
   openPage(DOSSIER);
   chrome.notifications.clear(id);
 });
-
-// Notes, alert history and waiver plans belong to one Sleeper account. Everyone
-// in the league shares the same league ID, so these keys can't tell two members
-// on one computer apart: on a switch, park the old account's copies under
-// `account:<id>` and bring back the new account's (or start it empty).
-const PER_ACCOUNT = ['notes', 'briefDone', 'alerts:feed', 'alerts:seen', 'plans', 'blockExtra', 'draft:stars', 'draft:board'];
-
-async function swapAccount(fromId, toId) {
-  const mine = await chrome.storage.local.get(PER_ACCOUNT);
-  const theirs = (await store.get(`account:${toId}`, null)) || {};
-  await chrome.storage.local.set({ [`account:${fromId}`]: mine });
-  const back = PER_ACCOUNT.filter((k) => theirs[k] !== undefined);
-  await chrome.storage.local.remove([...PER_ACCOUNT.filter((k) => theirs[k] === undefined), `account:${toId}`]);
-  if (back.length) await chrome.storage.local.set(Object.fromEntries(back.map((k) => [k, theirs[k]])));
-}
 
 // ---- handlers -------------------------------------------------------------------
 
