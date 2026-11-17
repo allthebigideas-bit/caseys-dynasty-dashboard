@@ -8,7 +8,8 @@ import { scoreLine, starterSlots, bestLineup } from '../lib/startsit.js';
 import { DEFAULT_PLAN } from '../lib/engine.js';
 import { fcTrades } from '../lib/fctrades.js';
 import { repairBoard } from '../lib/draft.js';
-import { normName, ownsTeam } from '../lib/util.js';
+import { normName } from '../lib/util.js';
+import { ownTeam } from '../lib/ownteam.js';
 import { quickRefresh } from '../lib/alerts.js';
 import { gqlTrades, gqlLeaguePlayers } from '../lib/sleeper.js';
 import { fetchLeague, compareLeagues } from '../lib/compare.js';
@@ -317,7 +318,7 @@ function renderTop() {
   else crumb = `<b>${esc(crumb)}</b>`;
   $('#top').innerHTML = `
     <button class="iconbtn" data-action="toggleSide" aria-label="Toggle sidebar">${icon('panel')}</button>
-    <div class="crumbs">${esc(L ? L.name : "Casey's Dynasty Dashboard")} / ${crumb}${viewingOther() ? ` <a class="pill warn" href="#settings" title="This isn't your Sleeper login. Offers, alerts and waiver claims are off.">Viewing as ${esc(tname(S.raw.me.rosterId))}</a>` : ''}</div>
+    <div class="crumbs">${esc(L ? L.name : "Casey's Dynasty Dashboard")} / ${crumb}${viewingAs() ? ` <a class="pill warn" href="#settings" title="This isn't your Sleeper login. Offers, alerts and waiver claims are off.">Viewing as ${esc(tname(S.raw.me.rosterId))}</a>` : ''}</div>
     <div class="spacer"></div>
     <div class="search">${icon('search')}<input type="text" id="q" placeholder="Search players or managers" value="${esc(S.ui.q)}" autocomplete="off">
       ${S.ui.results.length ? `<div class="results">${S.ui.results.map((x) => x.kind === 'team' ? `<a href="#manager/${x.rid}" data-action="closeSearch">${teamAvatar(team(x.rid))}<div><b>${esc(x.name)}</b><div class="muted small">Manager</div></div></a>` : `<a href="#" data-action="player" data-sid="${esc(x.sid)}">${headshot(x.sid)}<div><b>${esc(x.name)}</b><div class="muted small">${esc(x.pos)} ${esc(x.team || '')} · ${esc(x.owner)}</div></div></a>`).join('')}</div>` : ''}
@@ -327,7 +328,7 @@ function renderTop() {
     <button class="iconbtn" data-action="refreshNow" aria-label="Refresh rosters, picks and offers" title="Refresh rosters, picks, offers and trade blocks from Sleeper (a few seconds). Sync now in the sidebar reloads everything.">${icon('sync')}</button>
     <button class="iconbtn" data-action="cycleTheme" aria-label="Colour theme: ${themeName()}" title="Colour theme: ${themeName()}. Click to change.">${icon(themeIcon())}</button>
     <button class="toggle ${armed ? 'on' : ''}" data-action="armToggle" title="Overnight waiver claims">Waivers armed <span class="sw"></span></button>
-    ${S.ui.feedOpen ? `<div class="results" style="right:22px;top:52px;position:fixed;width:360px">${S.feed.length ? S.feed.slice(0, 12).map((f) => `<div style="padding:8px"><b>${esc(f.title)}</b> <span class="faint small">${esc(when(f.at))}</span><div class="muted small">${esc(f.body)}</div></div>`).join('') : '<div class="empty" style="padding:10px">No background alerts yet. They appear here and as Chrome notifications.</div>'}</div>` : ''}`;
+    ${S.ui.feedOpen ? `<div class="results" style="right:22px;top:52px;position:fixed;width:360px">${teamState() && teamState() !== 'own' ? `<div style="padding:10px">${notOwnNotice('Alerts')}</div>` : S.feed.length ? S.feed.slice(0, 12).map((f) => `<div style="padding:8px"><b>${esc(f.title)}</b> <span class="faint small">${esc(when(f.at))}</span><div class="muted small">${esc(f.body)}</div></div>`).join('') : '<div class="empty" style="padding:10px">No background alerts yet. They appear here and as Chrome notifications.</div>'}</div>` : ''}`;
 }
 
 function renderProgress() {
@@ -880,8 +881,16 @@ function passedAroundCard(m) {
 }
 
 
+// Why offers, alerts and waiver claims are off for the viewed team: the
+// viewing-as notice, or its logged-out wording with nothing to switch back to.
+function notOwnNotice(what) {
+  if (teamState() === 'loggedOut') return '<p class="muted">Log in to <a class="textlink" href="https://sleeper.com" target="_blank" rel="noopener">sleeper.com</a> in this Chrome to see offers, alerts and waiver claims.</p>';
+  return `<p class="muted">You're viewing <b>${esc(tname(S.raw.me.rosterId))}</b>, which isn't your Sleeper login. ${what} only work for your own team.</p><a class="btn primary" href="#settings">Switch back to your team</a>`;
+}
+
 // Why offers are missing, shown on the offer pages instead of a page of zeros.
 function offersNotice() {
+  if (teamState() === 'loggedOut') return `<div class="card"><h3>Offers</h3>${notOwnNotice('Offers')}</div>`;
   const g = S.raw && S.raw.gql;
   if (!g || g.ok) return '';
   const login = S.auth && S.auth.userId;
@@ -1409,7 +1418,7 @@ function viewIncoming() {
   const stSel = `<select data-inc="status">${[['all', 'Any result'], ['proposed', 'Waiting'], ['rejected', 'You rejected'], ['cancelled', 'He withdrew'], ['complete', 'Accepted']].map(([v, l]) => `<option value="${v}" ${f.status === v ? 'selected' : ''}>${l}</option>`).join('')}</select>`;
   const sortSel = `<select data-inc="sort">${[['date', 'Newest first'], ['ask', 'Highest ask first'], ['askAsc', 'Lowest ask first']].map(([v, l]) => `<option value="${v}" ${f.sort === v ? 'selected' : ''}>${l}</option>`).join('')}</select>`;
   const quick = [['7', 'Last 7 days'], ['30', 'Last 30 days'], ['90', 'Last 90 days'], ['all', 'All time']].map(([v, l]) => `<button class="btn sm" data-action="incRange" data-days="${v}">${l}</button>`).join('');
-  return `<div class="three" style="margin-bottom:16px">
+  return `${offersNotice()}<div class="three" style="margin-bottom:16px">
       <div class="card tile hot">${icon('swap')}<div class="num">${rows.length}</div><div class="lab">Offers to you in this view</div></div>
       <div class="card tile">${icon('chart')}<div class="num">${signPct(mean(asks))}</div><div class="lab">Average ask · median ${signPct(median(asks))}</div></div>
       <div class="card tile">${icon('flag')}<div class="num">${pct(share((v) => v > 0.3))}</div><div class="lab">Lowballs (asking over +30%) · ${pct(share((v) => v <= 0.1))} within +10% of fair</div></div>
@@ -2229,7 +2238,7 @@ function viewWaivers() {
   const m = S.model;
   // The plan and league record belong to your own team, so don't offer the
   // viewed team's roster as drop spots.
-  if (viewingOther()) return `<div class="card"><h3>Overnight waiver claims</h3><p class="muted">You're viewing <b>${esc(tname(S.raw.me.rosterId))}</b>, which isn't your Sleeper login. Waiver claims only work for your own team.</p><a class="btn primary" href="#settings">Switch back to your team</a></div>`;
+  if (teamState() && teamState() !== 'own') return `<div class="card"><h3>Overnight waiver claims</h3>${notOwnNotice('Waiver claims')}</div>`;
   if (!lg) return `<div class="card"><h3>Overnight waiver claims</h3><p class="muted">Sync once so the claimer knows your roster.</p><button class="btn primary" data-action="sync">Sync now</button></div>`;
   const p = plan();
   const run = p.run;
@@ -3586,7 +3595,9 @@ async function exportPoster(el, build) {
 // ---- your team picker -----------------------------------------------------------------------
 
 const loginId = () => (S.auth && S.auth.userId ? String(S.auth.userId) : '');
-const viewingOther = () => !!(S.raw && S.raw.me && loginId()) && !ownsTeam(S.raw, S.auth);
+// The own-team gate for the viewed team: 'own', 'viewingAs' or 'loggedOut' (null before the first sync).
+const teamState = (auth = S.auth) => (S.raw && S.raw.me ? ownTeam({ rosters: S.raw.rosters, rosterId: S.raw.me.rosterId }, auth) : null);
+const viewingAs = () => teamState() === 'viewingAs';
 
 function viewPicker({ welcome = false } = {}) {
   const P2 = S.pick;
@@ -3600,7 +3611,7 @@ function viewPicker({ welcome = false } = {}) {
     : 'Not logged in to Sleeper in this browser. Open <b style="color:var(--text)">sleeper.com</b> and log in and your team loads by itself, or find your league below.';
   return `<div class="card" ${welcome ? 'style="max-width:640px;margin-top:14px"' : ''}><h3>Your team</h3>
     <p class="muted">${status}</p>
-    ${viewingOther() ? `<div class="notice info">Viewing <b>${esc(tname(S.raw.me.rosterId))}</b>, which isn't your Sleeper login. Offers, alerts and waiver claims are off while you do.</div>` : ''}
+    ${viewingAs() ? `<div class="notice info">Viewing <b>${esc(tname(S.raw.me.rosterId))}</b>, which isn't your Sleeper login. Offers, alerts and waiver claims are off while you do.</div>` : ''}
     <div class="row" style="gap:8px;align-items:end">
       <label class="f" style="flex:1">Sleeper username or league ID${me ? ' (leave blank for your own leagues)' : ''}<input type="text" id="pick-q" value="${esc(P2.q)}" placeholder="${me ? 'Blank = my leagues' : 'e.g. your Sleeper username'}"></label>
       <button class="btn" data-action="pickFind">${P2.busy ? 'Looking…' : 'Find leagues'}</button>
@@ -3801,7 +3812,10 @@ const actions = {
     renderProgress();
     try {
       const lid = S.raw.league.league_id;
-      const [trades, lp] = await Promise.all([gqlTrades(lid, 80).catch(() => null), gqlLeaguePlayers(lid).catch(() => null)]);
+      // Offers belong to the login, so only the own team fetches them; viewing as
+      // someone else keeps the offers data and its "not your team" error.
+      const own = teamState() === 'own';
+      const [trades, lp] = await Promise.all([own ? gqlTrades(lid, 80).catch(() => null) : null, gqlLeaguePlayers(lid).catch(() => null)]);
       S.raw = await quickRefresh(S.raw, trades, lp ? lp.filter((p) => p.settings && p.settings.otb) : null);
       await rebuild();
     } catch (e) {
@@ -3980,19 +3994,20 @@ const actions = {
     render();
   },
   async dryRun() {
+    if (teamState() !== 'own') return render();
     const r = await chrome.runtime.sendMessage({ type: 'dryRun', uid: uid() });
     S.ui.dry = r && r.ok ? (r.actions.length ? r.actions : ['Nothing to do: no spots, or none of your targets are available.']) : [r ? r.error : 'No reply'];
     render();
   },
   async claimNow() {
-    if (viewingOther()) return render();
+    if (teamState() !== 'own') return render();
     if (!confirm('Make real adds and drops in Sleeper right now, using your list?')) return;
     const r = await chrome.runtime.sendMessage({ type: 'arm', uid: uid(), now: true });
     S.ui.wv.msg = r && r.ok ? `Claiming now.${r.warnings && r.warnings.length ? ' ' + r.warnings.join(' ') : ''}` : `Couldn't start: ${r ? r.error : 'no reply'}`;
     await refreshPlans();
   },
   async arm() {
-    if (viewingOther()) return render();
+    if (teamState() !== 'own') return render();
     const r = await chrome.runtime.sendMessage({ type: 'arm', uid: uid() });
     S.ui.wv.msg = r && r.ok ? `Armed. Checking starts ${when(r.run.windowStart)}. Leave Chrome open and the computer awake.${r.warnings && r.warnings.length ? ' ' + r.warnings.join(' ') : ''}` : `Couldn't arm: ${r ? r.error : 'no reply'}`;
     await refreshPlans();
@@ -4005,8 +4020,8 @@ const actions = {
   async armToggle() {
     const p = plan();
     if (p.run) return actions.disarm();
-    // The Waivers page explains why claims are off for someone else's team.
-    if (viewingOther()) { location.hash = '#waivers'; render(); return; }
+    // The Waivers page explains why claims are off when this isn't the own team.
+    if (teamState() !== 'own') { location.hash = '#waivers'; render(); return; }
     if (!p.drops.length || !p.targets.length) {
       S.ui.wv.msg = 'Pick at least one drop spot and one target, then arm.';
       location.hash = '#waivers';
@@ -4138,7 +4153,7 @@ chrome.storage.onChanged.addListener((ch, area) => {
       if (sw || missingOffers()) runSync(); else render();
     });
     // A fresh token for the same account: retry offers once if they failed.
-    else if (newToken && ownsTeam(S.raw, a) && !(S.raw.gql && S.raw.gql.ok) && !S.syncing) runSync();
+    else if (newToken && teamState(a) === 'own' && !(S.raw.gql && S.raw.gql.ok) && !S.syncing) runSync();
   }
   // Another account's notes and alerts swapped in by the background (see swapAccount).
   // Saving your own note lands here too; only rebuild when the notes really differ.
@@ -4185,7 +4200,7 @@ async function noticeLogin() {
 // Data built before the login reached this browser (so offers were never
 // asked for): rebuild it with offers. A sync that asked and failed doesn't
 // count, or every page open would start another full sync.
-const missingOffers = () => ownsTeam(S.raw, S.auth) && !S.raw.me.own;
+const missingOffers = () => teamState() === 'own' && !!(S.raw.gql && S.raw.gql.skipped);
 
 (async function init() {
   await gate();
