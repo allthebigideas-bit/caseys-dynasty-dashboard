@@ -173,6 +173,10 @@ The sidebar on the left has every page. The top bar has search (players and mana
   - **Who drafts well in this league,** and every past rookie draft with what each pick became.
   - **Prospect board:** FantasyPros dynasty rookie rankings when they cover next year's class. Otherwise, paste any ranking list. You can star your guys.
 
+## What changed in 2.29.1
+
+- Fixed: on manager pages, the value-weighted age in "Roster value by career phase" sat below the ring, on top of "Rising". The small split donuts added for Most lopsided in 2.24 reused the ring's `donut` class and overrode its layout; they're now `sdonut`.
+
 ## What changed in 2.29.0
 
 - **Waiver runs start on the right night.** The start time only looked at the clock, never the day, so a weekly-waiver league armed on any day but Tuesday ran a day or more early, found nothing processed, fell back to adding players still on waivers, and gave up. Runs now start on the league's waiver morning (Sleeper's `waiver_day_of_week`, counted from Monday: the default 2 is early Wednesday). Daily-waiver leagues still run the next night. The Waivers page shows the day and when the next run would start; the button reads "Arm for next waivers" and the sidebar shows when an armed run starts.

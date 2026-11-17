@@ -1149,11 +1149,11 @@ html { scroll-behavior: smooth; }
 .trank td.lside { min-width: 150px; max-width: 230px; }
 .trank td.lside .meta { white-space: normal; }
 .trank td.dncell { padding-top: 4px; padding-bottom: 4px; }
-.donut { display: block; margin-left: auto; }
-.donut .dn-off { fill: none; stroke: rgb(var(--red-rgb) / .55); stroke-width: 5; }
-.donut .dn-on { fill: none; stroke: var(--green); stroke-width: 5; }
-.donut .dn-t { fill: currentColor; font-size: 9px; font-weight: 800; text-anchor: middle; dominant-baseline: central; }
-#print .pr-covtable .donut { width: 32px; height: 32px; }
+.sdonut { display: block; margin-left: auto; }
+.sdonut .dn-off { fill: none; stroke: rgb(var(--red-rgb) / .55); stroke-width: 5; }
+.sdonut .dn-on { fill: none; stroke: var(--green); stroke-width: 5; }
+.sdonut .dn-t { fill: currentColor; font-size: 9px; font-weight: 800; text-anchor: middle; dominant-baseline: central; }
+#print .pr-covtable .sdonut { width: 32px; height: 32px; }
 #print .pr-covtable .trank td.lside .meta { max-width: 190px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 /* JPG export progress */
