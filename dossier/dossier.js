@@ -1,6 +1,7 @@
 import { gate, lock } from '../splash/gate.js';
 import { downloadPoster } from './poster.js';
-import * as sync from '../lib/sync.js';
+import { createSync, NEED_TEAM } from '../lib/sync.js';
+import { networkSleeper } from '../lib/sleeper-port.js';
 import { buildModel, roundName, ordinal, dateStr, fmtK, dur } from '../lib/intel.js';
 import { ktcVerdict, fcAdjustment, letterGrade, gainPct } from '../lib/ktcmath.js';
 import { playerValue } from '../lib/values.js';
@@ -8,11 +9,13 @@ import { scoreLine, starterSlots, bestLineup } from '../lib/startsit.js';
 import { DEFAULT_PLAN } from '../lib/engine.js';
 import { fcTrades } from '../lib/fctrades.js';
 import { repairBoard } from '../lib/draft.js';
-import { normName } from '../lib/util.js';
+import { normName, store } from '../lib/util.js';
 import { ownTeam } from '../lib/ownteam.js';
 import { quickRefresh } from '../lib/alerts.js';
 import { gqlTrades, gqlLeaguePlayers } from '../lib/sleeper.js';
 import { fetchLeague, compareLeagues } from '../lib/compare.js';
+
+const sync = createSync({ sleeper: networkSleeper, store });
 
 // ---- state ----------------------------------------------------------------------------
 
@@ -344,7 +347,7 @@ function render() {
   const view = $('#view');
   const r = route();
   if (!S.model) {
-    const why = (S.error && S.error !== sync.NEED_TEAM ? S.error : null) || S.buildError;
+    const why = (S.error && S.error !== NEED_TEAM ? S.error : null) || S.buildError;
     view.innerHTML = `${artBanner({ mood: 'glory', eyebrow: "Casey's Dynasty League", title: S.syncing ? 'Building your league file' : 'Welcome to the dashboard', sub: S.syncing ? esc(S.syncing) + '…' : 'Every manager profiled, every trade graded, and your own team front and centre.' })}<div class="card" style="max-width:640px">
       <h3>${S.syncing ? 'Building your league file' : 'Getting started'}</h3>
       ${why ? `<div class="notice">${esc(why)}</div>` : ''}
