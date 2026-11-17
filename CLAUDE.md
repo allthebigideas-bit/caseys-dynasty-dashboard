@@ -12,7 +12,7 @@ Follow `docs/browser-testing.md`.
 
 ### Issue tracker
 
-GitHub Issues on the fork `mntropy/caseys-dynasty-dashboard` (PRs still target `allthebigideas-bit`). See `docs/agents/issue-tracker.md`.
+GitHub Issues on `allthebigideas-bit/caseys-dynasty-dashboard`, alongside the PRs. See `docs/agents/issue-tracker.md`.
 
 ### Triage labels
 

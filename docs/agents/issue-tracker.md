@@ -1,12 +1,12 @@
-# Issue tracker: GitHub (fork)
+# Issue tracker: GitHub
 
-Issues and specs live on the fork, mntropy/caseys-dynasty-dashboard, not on origin (allthebigideas-bit, read-only for us). Pull requests still go to origin.
+Issues, specs and pull requests all live on origin, allthebigideas-bit/caseys-dynasty-dashboard.
 
-- Every `gh issue` command passes `-R mntropy/caseys-dynasty-dashboard`. In this clone `gh` defaults to origin.
+- Every `gh issue` command passes `-R allthebigideas-bit/caseys-dynasty-dashboard`, so it never lands on a fork a clone happens to have as a remote.
 - Run each `gh` command on its own, with the sandbox off. Pass any body that contains backticks with `--body-file`.
-- A PR merged into origin may not close a fork issue through "Closes #n". After the merge, comment on the ticket with a link to the PR, then close it.
+- A PR closes its ticket with "Closes #n" in its body.
 
-Below, `R` stands for `-R mntropy/caseys-dynasty-dashboard`, and `<owner>/<repo>` in `gh api` paths is `mntropy/caseys-dynasty-dashboard`.
+Below, `R` stands for `-R allthebigideas-bit/caseys-dynasty-dashboard`, and `<owner>/<repo>` in `gh api` paths is `allthebigideas-bit/caseys-dynasty-dashboard`.
 
 ## Conventions
 
@@ -20,7 +20,7 @@ Below, `R` stands for `-R mntropy/caseys-dynasty-dashboard`, and `<owner>/<repo>
 - **Apply / remove labels**: `gh issue edit <number> R --add-label "..."` / `--remove-label "..."`
 - **Close**: post the explanation with `gh issue comment <number> R --body-file <file>`, then `gh issue close <number> R`. On an already-closed issue, `gh issue close --comment` drops the comment and still exits 0.
 
-File issues only into the fork. Before the first `gh issue create` of a session, check the target with `gh repo view mntropy/caseys-dynasty-dashboard --json nameWithOwner`.
+File issues only into origin.
 
 ## Pull requests as a triage surface
 
@@ -32,11 +32,10 @@ When set to `yes`, PRs run through the same labels and states as issues, using t
 - **List external PRs for triage**: `gh api --paginate 'repos/{owner}/{repo}/pulls?state=open' --jq '.[] | select(.author_association | IN("OWNER","MEMBER","COLLABORATOR") | not) | {number, title, author: .user.login, author_association, labels: [.labels[].name]}'`.
 - **Comment / label / close**: `gh pr comment`, `gh pr edit --add-label`/`--remove-label`, `gh pr close`.
 
-GitHub shares one number space across issues and PRs, so a bare `#42` may be either: resolve with `gh pr view 42` and fall back to `gh issue view 42`. PRs live on origin and issues on the fork, so name the repo whenever it's ambiguous.
-
+GitHub shares one number space across issues and PRs, so a bare `#42` may be either: resolve with `gh pr view 42` and fall back to `gh issue view 42`.
 ## When a skill says "publish to the issue tracker"
 
-Create a GitHub issue on the fork.
+Create a GitHub issue on origin.
 
 ## When a skill says "fetch the relevant ticket"
 
