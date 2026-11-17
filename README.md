@@ -181,9 +181,16 @@ The sidebar on the left has every page. The top bar has search (players and mana
 - Waiver notifications now say "Casey's Dynasty Dashboard" instead of "Waiver Vulture", so they can't be mixed up with a personal Waiver Vulture install.
 - First automated tests (trade grades, aging curves, the "is this my team" check). Run them with `npm test`. They also run on GitHub for every push.
 
-## What changed in 2.27.0
+## What changed in 2.28.0
 
-- **Most lopsided trades: By value / By points.** By points ranks trades by how many more starter points one side's new players have scored than the other's since the deal (counting only games started for the team that got them). The PDF report follows whichever you pick.
+Brings over the trade tree work from Waiver Vulture 2.23–2.27:
+
+- **Trade tree value math fixed.** "At the trade" used KTC's calculator total (with its package adjustment) but "today" was a raw sum, so gaps, swings and "flipped in hindsight" were off by the adjustment. Today's trees now go through the same calculator. "At the trade" only shows when there are real values from that time.
+- **Starter points in the trade trees.** Every player carries the starting-lineup points he scored for that team while on the roster, credited down the tree by share, like value.
+- **Attribution math per trade:** a summary card per side, the steps in plain English, a worked example, and one row per asset with the share chain written out.
+- **Most lopsided and Most branches tables expanded:** each side's value at the trade, today and starter points, plus value gap, swing and points gap (or totals and growth). Click any column to re-rank; the top 10 is re-picked by that column. (This replaces 2.27.0's simple By value / By points switch.)
+- **JPG report:** next to *Download PDF report*, *JPGs (.zip)* saves a cover image plus one tall image per trade (the tree and its full accounting). The images are always dark, whatever theme the dashboard is in.
+- PDF report updated to match.
 
 ## What changed in 2.26.3
 

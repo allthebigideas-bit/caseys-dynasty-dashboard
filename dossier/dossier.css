@@ -1087,7 +1087,169 @@ html { scroll-behavior: smooth; }
   html { scroll-behavior: auto; }
 }
 
-/* Two-way switch (Most lopsided: By value / By points). */
-.tseg { display: inline-flex; gap: 4px; padding: 3px; border-radius: 12px; border: 1px solid rgb(var(--accent2-rgb) / .25); }
-.tseg .tbtn { border-color: transparent; background: transparent; }
-.tseg .tbtn.on { background: linear-gradient(180deg, var(--gold-2), var(--gold)); color: var(--gold-ink); font-weight: 700; }
+/* ==== From Waiver Vulture 2.23–2.27: trade tree points, ranked tables, JPG reports ==== */
+
+/* attribution math: summary cards, steps, example, points */
+.msums { display: flex; flex-wrap: wrap; gap: 10px; margin: 6px 0 10px; }
+.msumcard { flex: 1 1 240px; padding: 10px 12px; border-radius: 10px; background: rgb(var(--accent-rgb) / .08); border: 1px solid rgb(var(--accent2-rgb) / .22); }
+.msumcard .tnl { margin-bottom: 6px; display: inline-flex; }
+.msumcard .mline { display: flex; align-items: baseline; gap: 8px; font-size: 12.5px; padding: 2px 0; }
+.msumcard .mline span { color: var(--muted); flex: 1; }
+.msumcard .mline em { font-style: normal; font-size: 11.5px; }
+.msteps { margin: 4px 0 10px 18px; padding: 0; color: var(--muted); }
+.msteps li { margin: 3px 0; }
+.msteps b { color: var(--accent-t); }
+.mexample { margin: 0 0 10px; padding: 8px 12px; border-left: 3px solid var(--gold); background: rgb(var(--gold-rgb) / .07); border-radius: 0 8px 8px 0; font-size: 12.5px; }
+.tmath .mh .dno { margin-right: 6px; }
+.tmt tr.mflip td { background: rgb(var(--ink-rgb) / .015); }
+.fbox .fpts { color: var(--good-t); }
+
+/* ranked trade tables (most lopsided / most branches) */
+.trank th.bl, .trank td.bl, .trank th[data-bl] { border-left: 1px solid rgb(var(--accent2-rgb) / .22); }
+.trank tr.grp th { font-size: 10.5px; letter-spacing: .06em; text-transform: uppercase; color: var(--accent-t); text-align: center; padding-bottom: 0; border-bottom: none; }
+.trank th.sortable { cursor: pointer; white-space: nowrap; }
+.trank th.sortable.on { color: var(--gold); }
+.trank td .meta.up, .trank td .meta.down { font-size: 11px; }
+
+/* PDF report: full accounting pages + expanded cover table.
+   Outside @media print on purpose: pages are measured off-screen with these same styles. */
+#print .pr-math { margin: 0; padding: 10px 14px; font-size: 11px; }
+#print .pr-math .hd { margin-bottom: 4px; }
+#print .pr-math .msums { margin: 4px 0 6px; gap: 8px; }
+#print .pr-math .msumcard { padding: 6px 10px; }
+#print .pr-math .msumcard .mline { font-size: 11px; padding: 1px 0; }
+#print .pr-math .msteps { font-size: 10.5px; margin: 2px 0 6px 16px; }
+#print .pr-math .msteps li { margin: 1px 0; }
+#print .pr-math .mexample { font-size: 11px; padding: 5px 10px; margin-bottom: 6px; }
+#print .pr-math .mh { font-size: 12.5px; margin: 8px 0 4px; }
+#print .pr-math .scroll { overflow: visible; }
+#print .pr-math .tmt { width: 100%; }
+#print .pr-math .tmt td, #print .pr-math .tmt th { padding: 3px 6px; font-size: 10.5px; line-height: 1.3; }
+#print .pr-math .tmt .meta { font-size: 9.5px; }
+#print .pr-math .tmt tr, #print .pr-math .msumcard, #print .pr-math .mexample { break-inside: avoid; }
+#print .pr-math .av, #print .pr-math img.tlogo { width: 16px; height: 16px; }
+#print .pr-covtable { padding: 6px 4px; }
+#print .pr-covtable .trank td, #print .pr-covtable .trank th { padding: 4px 5px; font-size: 10.5px; }
+#print .pr-covtable .trank td > .meta { max-width: 240px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 9.5px; }
+#print .pr-covtable .trank .rank { width: 20px; height: 20px; font-size: 11px; }
+#print .pr-covtable .split2 { min-width: 50px; }
+#print .pr-covtable .tbtn { display: none; }
+
+/* lopsided: side columns + split donuts */
+.trank td.lside { min-width: 150px; max-width: 230px; }
+.trank td.lside .meta { white-space: normal; }
+.trank td.dncell { padding-top: 4px; padding-bottom: 4px; }
+.donut { display: block; margin-left: auto; }
+.donut .dn-off { fill: none; stroke: rgb(var(--red-rgb) / .55); stroke-width: 5; }
+.donut .dn-on { fill: none; stroke: var(--green); stroke-width: 5; }
+.donut .dn-t { fill: currentColor; font-size: 9px; font-weight: 800; text-anchor: middle; dominant-baseline: central; }
+#print .pr-covtable .donut { width: 32px; height: 32px; }
+#print .pr-covtable .trank td.lside .meta { max-width: 190px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* JPG export progress */
+.jpgtoast { position: fixed; right: 18px; bottom: 18px; z-index: 9999; padding: 10px 14px; border-radius: 10px; background: var(--card-2); border: 1px solid rgb(var(--accent2-rgb) / .4); color: var(--text); font-size: 13px; box-shadow: 0 8px 30px rgba(0, 0, 0, .5); }
+.jpgtoast.err { border-color: rgb(var(--red-rgb) / .7); }
+
+/* KTC package adjustment lines */
+.fdealsum li.fadj { color: var(--muted); font-size: .92em; }
+.fdealsum li.ftot { border-top: 1px dashed rgb(var(--accent2-rgb) / .3); margin-top: 4px; padding-top: 4px; }
+.tmt tr.msub td { background: rgb(var(--accent-rgb) / .04); color: var(--muted); }
+
+/* ---- Typography: ranked summary tables (Most lopsided / Most branches) ---- */
+.trank { font-variant-numeric: tabular-nums; font-size: 13px; }
+.trank thead th { font-size: 11.5px; font-weight: 600; color: var(--muted); letter-spacing: .02em; padding: 8px 10px 10px; vertical-align: bottom; }
+.trank thead tr.grp th { font-size: 11px; font-weight: 700; letter-spacing: .14em; color: var(--accent-t); padding: 10px 10px 2px; }
+.trank tbody td { padding: 12px 10px; line-height: 1.35; }
+.trank tbody tr:nth-child(even) td { background: rgb(var(--ink-rgb) / .018); }
+.trank td.num { font-size: 13.5px; }
+.trank td.num b { font-weight: 700; font-size: 14px; }
+.trank td .tnl b { font-size: 13.5px; font-weight: 700; letter-spacing: .01em; }
+.trank td .meta { color: var(--muted); font-size: 12px; margin-top: 4px; line-height: 1.4; }
+.trank td.num .meta { font-size: 11.5px; margin-top: 2px; }
+.trank td.nowrap { color: var(--text-2); }
+.trank .rank { width: 26px; height: 26px; font-size: 12.5px; }
+
+/* ---- Typography: attribution ledger ---- */
+.tmath { font-variant-numeric: tabular-nums; }
+.tmath .tmt th { font-size: 11.5px; font-weight: 600; color: var(--muted); }
+.tmath .tmt td { font-size: 13px; line-height: 1.4; }
+.tmath .tmt td .meta { font-size: 11.5px; color: var(--muted); }
+.tmath .msumcard .mline b { font-size: 15px; }
+.tmath .msteps { line-height: 1.5; }
+
+/* ---- JPG report images (built off-screen; print styles are injected while they're made) ---- */
+#print .img-page { box-sizing: border-box; padding: 44px 48px 36px; background: radial-gradient(60% 30% at 90% 0%, rgb(var(--accent-rgb) / .25), transparent 70%), var(--bg); position: relative; font-size: 14px; }
+#print .img-page .ttop { grid-template-columns: 1fr 1.3fr; margin-bottom: 18px; }
+#print .img-page .ttop .tleg { display: none; }
+#print .img-page .tsum .who2 { display: none; }
+#print .img-page .tdeal { margin-bottom: 16px; padding: 14px 18px; }
+#print .img-page .tcanvas { min-height: 0; overflow: visible; }
+#print .img-page .thero.small h1 { font-size: 28px; }
+#print .img-page .thero.small p { font-size: 14.5px; }
+#print .img-page .prstats b { font-size: 24px; }
+#print .img-page .prstats span { font-size: 11px; }
+#print .img-h { font-size: 13px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; color: var(--accent-t); margin: 22px 0 10px; }
+#print .img-tree { padding: 18px 20px; }
+#print .img-tree .prz .ft { margin: 0 auto; }
+#print .img-rank { color: var(--muted); font-size: 14px; margin: 4px 2px 10px; }
+#print .img-rank b { color: var(--gold); }
+#print .img-foot { color: var(--faint); font-size: 12.5px; text-align: right; margin: 22px 0 0; }
+#print .img-table { padding: 8px 6px; }
+#print .img-page .trank { font-size: 14px; }
+#print .img-page .trank tbody td { padding: 13px 11px; }
+#print .img-page .trank td .meta { white-space: normal; }
+#print .img-page .tbtn, #print .img-page .tcta, #print .img-page .seg { display: none !important; }
+#print .img-page .tmath { padding: 16px 20px; }
+#print .img-page .tmath .tmt td { font-size: 13.5px; }
+#print .img-page .scroll { overflow: visible; }
+
+/* JPG report images are always drawn dark, whatever theme the page is in. */
+#print .img-page {
+  --bg: #12072a;
+  --side: #170a33;
+  --card: #1d0d3d;
+  --card-2: #251150;
+  --line: #36195f;
+  --line-2: #4a2580;
+  --text: #fbf6ff;
+  --muted: #b3a0d6;
+  --faint: #7d6aa3;
+  --text-2: #d8cbef;
+  --violet: #9d4dff;
+  --violet-2: #c08cff;
+  --violet-deep: #5a1fb8;
+  --violet-soft: rgb(157 77 255 / .16);
+  --gold: #f2b632;
+  --gold-2: #ffd768;
+  --gold-ink: #1b1030;
+  --green: #2fc66b;
+  --orange: #f2a541;
+  --red: #f05a5a;
+  --blue: #4ea1ff;
+  --good-t: #7fe3a6;
+  --bad-t: #ff9b9b;
+  --warn-t: #ffc77d;
+  --note-t: #ffd56b;
+  --note-t2: #efe4c4;
+  --accent-t: #cfa8ff;
+  --blue-t: #9ccaff;
+  --pink-t: #ff9bd0;
+  --on-strong: #f2fff7;
+  --surf-1: #1f0e42;
+  --surf-2: #2a1452;
+  --surf-3: #341a63;
+  --accent-rgb: 157 77 255;
+  --accent2-rgb: 192 140 255;
+  --red-rgb: 240 90 90;
+  --green-rgb: 47 198 107;
+  --orange-rgb: 242 165 65;
+  --gold-rgb: 242 182 50;
+  --blue-rgb: 78 161 255;
+  --ink-rgb: 255 255 255;
+  --deep-rgb: 18 7 42;
+  --deep2-rgb: 42 16 84;
+  --scrim-rgb: 8 2 20;
+  --topbar: rgb(18 7 42 / .9);
+  color-scheme: dark;
+  color: var(--text);
+}

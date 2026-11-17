@@ -20,7 +20,7 @@ const S = {
   cfg: {}, feed: [], lastCheck: null, auth: null, notes: {}, briefDone: {}, plans: {}, wleagues: {}, log: [],
   model: null, syncing: null, error: null, buildError: null, prevSeen: 0,
   lab: { a: null, b: null, picked: new Set() },
-  ui: { season: { key: 'playoffOdds', dir: -1 }, wk: { min: 0.1, pos: 'ALL' }, form: { rid: null, pos: 'ALL', sort: 'form' }, inc: { rid: 'all', from: '', to: '', status: 'all', sort: 'date', open: null }, boardEdit: false, sum: { key: 'posture', dir: -1 }, history: false, open: { managers: false, trades: true }, q: '', results: [], drawer: null, wv: { sort: 'value', pos: 'ALL', msg: '' }, rising: { pos: 'ALL', need: false, owner: 'all', sort: 'next3' }, posr: { mode: 'dyn', sort: 'avg', focus: 'RB', owner: 'all' }, cmp: { uid: null, lid: null, pos: 'ALL' }, dealTab: {}, tree: { zoom: 'fit', side: 'both', orient: 'auto', autoOrient: null, stacked: false, for: null, view: 'tree', kind: 'all', mgr: 'all', asset: 'all', sort: 'gen', depth: '0', open: {}, closed: {} }, feedOpen: false },
+  ui: { season: { key: 'playoffOdds', dir: -1 }, wk: { min: 0.1, pos: 'ALL' }, form: { rid: null, pos: 'ALL', sort: 'form' }, inc: { rid: 'all', from: '', to: '', status: 'all', sort: 'date', open: null }, boardEdit: false, sum: { key: 'posture', dir: -1 }, history: false, open: { managers: false, trades: true }, q: '', results: [], drawer: null, wv: { sort: 'value', pos: 'ALL', msg: '' }, rising: { pos: 'ALL', need: false, owner: 'all', sort: 'next3' }, posr: { mode: 'dyn', sort: 'avg', focus: 'RB', owner: 'all' }, cmp: { uid: null, lid: null, pos: 'ALL' }, dealTab: {}, tree: { zoom: 'fit', side: 'both', orient: 'auto', autoOrient: null, stacked: false, for: null, view: 'tree', kind: 'all', mgr: 'all', asset: 'all', sort: 'gen', depth: '0', open: {}, closed: {} }, lop: { key: 'gap', dir: -1 }, brs: { key: 'br', dir: -1 }, feedOpen: false },
   trending: null,
   pick: { q: '', leagues: null, leagueId: '', teams: null, teamUserId: '', busy: false, error: '', auto: false },
 };
@@ -2517,10 +2517,16 @@ const treeStats = (nt) => {
   return { g, later };
 };
 
+// What a side got, valued at the trade. Only real historical values count: when the trade has no
+// values from its own time, "then" would just be today's values again, so it's unknown (null).
+const treeThen = (nt, r) => (nt.then && nt.then[r] ? nt.then[r].got : null);
+const treeThenAdj = (nt, r) => (nt.then && nt.then[r] ? nt.then[r].adj || 0 : 0);
+const adjNote = (adj) => (adj ? ` (incl. ${adj > 0 ? '+' : '−'}${k(Math.abs(adj))} KTC package adj.)` : '');
+
 // How much a trade's tree moved for each side: value at the trade vs what it's worth today.
 function treeGain(nt) {
   const per = nt.rids.map((r) => {
-    const then = nt.deal && nt.deal[r] ? nt.deal[r].got : null;
+    const then = treeThen(nt, r);
     const now = nt.tree[r] ? nt.tree[r].total : 0;
     return { r, then, now, gain: then != null ? now - then : null };
   });
@@ -2546,7 +2552,14 @@ function sortTrees(list, key) {
 // The full original deal: what each side sent, valued then and now.
 function treeDealSummary(nt) {
   const item = (a) => `<li>${a.kind === 'pick' ? '<span class="pos PK">PK</span>' : posTag(a.pos)} ${a.kind === 'pick' ? esc(a.label) : (S.dict[a.id] ? playerLink(a.id, a.name) : esc(a.name))} <span class="faint">${nt.thenVals && nt.thenVals[a.key] != null ? `${k(nt.thenVals[a.key])} → ` : ''}${k(a.v)}</span></li>`;
-  return `<div class="fdealsum">${nt.rids.map((r) => `<div><div class="small muted dsh">${tmini(nt, r)} ${esc(treeNm(nt, r))} received</div><ul>${(nt.recv[r] || []).map(item).join('') || '<li class="muted">nothing</li>'}</ul></div>`).join('<div class="fx">⇄</div>')}</div>`;
+  // Each side's KTC calculator total: the plain sum plus KTC's package adjustment (fewer, better pieces).
+  const totals = (r) => {
+    const t0 = nt.then && nt.then[r] ? nt.then[r] : null, n0 = nt.now && nt.now[r] ? nt.now[r] : null;
+    if (!n0) return '';
+    const adjLine = (t0 && t0.adj) || n0.adj ? `<li class="fadj"><span class="pos PK" style="opacity:0">·</span> KTC package adj. <span class="faint">${t0 ? `${t0.adj ? '+' + k(t0.adj) : '0'} → ` : ''}${n0.adj ? '+' + k(n0.adj) : '0'}</span></li>` : '';
+    return `${adjLine}<li class="ftot">Total <b>${t0 ? `${k(t0.got)} → ` : ''}${k(n0.got)}</b></li>`;
+  };
+  return `<div class="fdealsum">${nt.rids.map((r) => `<div><div class="small muted dsh">${tmini(nt, r)} ${esc(treeNm(nt, r))} received</div><ul>${(nt.recv[r] || []).map(item).join('') || '<li class="muted">nothing</li>'}${totals(r)}</ul></div>`).join('<div class="fx">⇄</div>')}</div>`;
 }
 
 // The family-tree diagram for one trade.
@@ -2572,7 +2585,7 @@ function treeDiagram(nt, opts = {}) {
   const box = (x, n, tg = '') => {
     const pic = x.kind === 'player' ? headshot(x.sid) : '<span class="av head" style="color:var(--accent-t)">PK</span>';
     const name = x.kind === 'player' ? playerLink(x.sid, itemName(x)) : esc(itemName(x));
-    return `<div class="fbox st-${n.status}">${pic}<div class="fb"><div class="fn">${tag(x)} ${name}</div>${x.draftedWith ? `<div class="fs">Drafted ${esc(x.draftedWith)}</div>` : ''}${statusTxt(n) ? `<div class="fs">${esc(statusTxt(n))}</div>` : ''}<div class="fv">${n.status === 'traded' || n.status === 'drafted' ? `became <b>${k(n.total)}</b>` : n.status === 'kept' || n.status === 'owned' ? `worth <b>${k(n.total)}</b>` : '<b>0</b>'}</div></div>${tg}</div>`;
+    return `<div class="fbox st-${n.status}">${pic}<div class="fb"><div class="fn">${tag(x)} ${name}</div>${x.draftedWith ? `<div class="fs">Drafted ${esc(x.draftedWith)}</div>` : ''}${statusTxt(n) ? `<div class="fs">${esc(statusTxt(n))}</div>` : ''}${n.pts ? `<div class="fs fpts" title="Starting-lineup points he scored for this team while on the roster">${Math.round(n.pts * 10) / 10} pts · ${n.starts} start${n.starts === 1 ? '' : 's'}</div>` : ''}<div class="fv">${n.status === 'traded' || n.status === 'drafted' ? `became <b>${k(n.total)}</b>` : n.status === 'kept' || n.status === 'owned' ? `worth <b>${k(n.total)}</b>` : '<b>0</b>'}</div></div>${tg}</div>`;
   };
   const also = (n) => (n.alsoSent && n.alsoSent.length && opts.withText ? `<span class="fs fwith">with ${n.alsoSent.map((x) => esc(itemName(x))).join(', ')}</span>` : '');
   // Assets this team added to a later deal from outside the tree: drawn faded beside the tree's own.
@@ -2602,9 +2615,10 @@ function treeDiagram(nt, opts = {}) {
   }
   const sideCol = (r) => {
     const tr = nt.tree[r];
-    const then = nt.deal && nt.deal[r] ? nt.deal[r].got : null;
+    const then = treeThen(nt, r);
+    const tAdj = treeThenAdj(nt, r);
     return `<li><div class="fteam">${teamAvatar(team(r))}<div><b>${esc(treeNm(nt, r))}</b> got
-      <div class="fs">${then != null ? `${k(then)} at the trade → ` : ''}<b class="${then != null && tr.total >= then ? 'up' : then != null ? 'down' : ''}">${k(tr.total)}</b> today · ${tr.generations} gen · ${tr.laterTrades} later deal${tr.laterTrades === 1 ? '' : 's'} · ${tr.playersNow} still rostered</div>${opts.part ? `<div class="fs fpart">${esc(opts.part)}</div>` : ''}</div></div>${opts.only ? kidsIdx(tr.nodes, opts.only, `s${r}`) : kids(tr.nodes, 0, `s${r}`)}</li>`;
+      <div class="fs">${then != null ? `<span title="KTC calculator value of what this side got, at the trade${esc(adjNote(tAdj))}">${k(then)} at the trade</span> → ` : ''}<b class="${then != null && tr.total >= then ? 'up' : then != null ? 'down' : ''}" title="KTC calculator value of this side's tree today${esc(adjNote(tr.adj || 0))}">${k(tr.total)}</b> today · ${tr.generations} gen · ${tr.laterTrades} later deal${tr.laterTrades === 1 ? '' : 's'} · ${tr.playersNow} still rostered${tr.pts ? ` · <b>${tr.pts.toLocaleString()}</b> starter pts` : ''}</div>${opts.part ? `<div class="fs fpart">${esc(opts.part)}</div>` : ''}</div></div>${opts.only ? kidsIdx(tr.nodes, opts.only, `s${r}`) : kids(tr.nodes, 0, `s${r}`)}</li>`;
   };
   if (lr) return `<div class="ft lr"><ul>${sides.map(sideCol).join('')}</ul></div>`;
   if (opts.stack && sides.length > 1) return sides.map((r) => `<div class="ft" style="margin-bottom:28px"><ul>${sideCol(r)}</ul></div>`).join('');
@@ -2616,9 +2630,10 @@ function treeLead(nt) {
   return ranked.length > 1 ? `${treeNm(nt, ranked[0])}'s side of the tree is worth ${k(nt.tree[ranked[0]].total)} today, ${k(nt.tree[ranked[0]].total - nt.tree[ranked[1]].total)} more than ${treeNm(nt, ranked[1])}'s.` : '';
 }
 
-// The math behind a tree: each later deal's split, then every asset the tree ends in with the
-// product of shares that carries its value back to the original trade.
-function attributionTables(nt) {
+// The math behind a tree, in three steps: (1) each later deal's split, (2) every asset the tree
+// touched with its value today and the starter points it scored while on the roster, each carried
+// back to the original trade by the product of shares on its path, (3) the per-side totals.
+function attributionTables(nt, opts = {}) {
   const pickName = (x) => `${x.season} ${roundName(Number(x.round))}${x.no ? ` (${x.no})` : ''}`;
   const nmOf = (x) => (x.kind === 'pick' || x.round != null ? pickName(x) : P(x.sid).name);
   const keyName = (key) => {
@@ -2627,64 +2642,164 @@ function attributionTables(nt) {
     return `${y} ${roundName(Number(r))} (${tname(Number(o))})`;
   };
   const pct = (x) => `${Math.round(x * 100)}%`;
+  const pf = (x) => (Math.round((x || 0) * 10) / 10).toLocaleString(undefined, { maximumFractionDigits: 1 });
+  const isPick = (x) => x.kind === 'pick' || x.round != null;
+  const tagOf = (x) => (isPick(x) ? '<span class="pos PK">PK</span>' : posTag(P(x.sid).pos));
   const deals = [], rows = [];
-  const walk = (rid, nodes, factor, path) => {
+  // chain: the deals on the path so far [{deal, share}]; factor = product of their shares.
+  const walk = (rid, nodes, chain, path) => {
+    const factor = chain.reduce((a, c) => a * c.share, 1);
     for (const n of nodes || []) {
       if (n.status === 'traded' || n.kind === 'package') {
         const label = n.kind === 'package' ? n.items.map(nmOf).join(' + ') : nmOf(n);
         const share = n.share != null ? n.share : 1;
         deals.push({ rid, at: n.at, partner: n.partner || [], label, parts: n.parts, share, full: n.fullTotal != null ? n.fullTotal : n.total, credited: n.total, src: n.valSrc, via: n.via });
         const no = deals.length;
-        walk(rid, n.children, factor * share, [...path, { label, deal: no, share }]);
+        // The flipped asset(s) themselves: they scored points before going out in deal `no`.
+        for (const it of n.kind === 'package' ? n.items : [n]) {
+          rows.push({ rid, x: it, path, chain, factor, flipped: no, from: it.from != null ? it.from : n.from, to: n.at, pts: it.pts || 0, starts: it.starts || 0, value: null });
+        }
+        walk(rid, n.children, [...chain, { deal: no, share }], [...path, { label, deal: no, share }]);
       } else if (n.status === 'drafted') {
-        walk(rid, n.children, factor, [...path, { label: nmOf(n), drafted: true }]);
+        walk(rid, n.children, chain, [...path, { label: nmOf(n), drafted: true }]);
       } else {
-        rows.push({ rid, n, path, value: n.total || 0, factor, attr: (n.total || 0) * factor });
+        rows.push({ rid, x: n, path, chain, factor, from: n.from, to: n.status === 'released' ? n.at : null, pts: n.pts || 0, starts: n.starts || 0, value: n.total || 0 });
       }
     }
   };
-  for (const r of nt.rids) walk(r, nt.tree[r].nodes, 1, []);
-  const statusTxt = (n) => ({ kept: 'On the roster', owned: 'Pick still owned', released: 'Released', gone: 'No longer on the roster', unknown: 'Pick used (player not matched)' }[n.status] || n.status);
+  for (const r of nt.rids) walk(r, nt.tree[r].nodes, [], []);
+  for (const x of rows) { x.attrV = x.value == null ? null : x.value * x.factor; x.attrP = x.pts * x.factor; }
+
+  const statusTxt = (x) => (x.flipped ? `Traded away in D${x.flipped}` : ({ kept: 'On the roster', owned: 'Pick still owned', released: 'Released', gone: 'No longer on the roster', unknown: 'Pick used (player not matched)' }[x.x.status] || x.x.status));
+  const chainTxt = (c) => (!c.length ? '100%' : c.length === 1 ? pct(c[0].share) : `${c.map((d) => pct(d.share)).join(' × ')} = <b>${pct(c.reduce((a, d) => a * d.share, 1))}</b>`);
+  const heldTxt = (x) => {
+    if (isPick(x.x)) return '<span class="faint">—</span>';
+    const end = x.to ? dateY(x.to) : x.x.status === 'kept' ? 'now' : '?';
+    return `${x.from ? esc(dateY(x.from)) : '?'} → ${esc(end)}<div class="meta">${x.starts} start${x.starts === 1 ? '' : 's'}</div>`;
+  };
+
+  // Step 1: the later deals and how each one was split.
   const dealRows = deals.map((d, i) => {
     const tr = d.parts ? d.parts.tree : [], ex = d.parts ? d.parts.extra : [];
     const list = (arr) => arr.map((x) => `${esc(keyName(x.key))} <span class="faint">${k(x.v)}</span>`).join('<br>') || '<span class="faint">—</span>';
     const tv = tr.reduce((a, x) => a + x.v, 0), ev = ex.reduce((a, x) => a + x.v, 0);
     return `<tr><td class="num"><span class="dno">D${i + 1}</span></td><td class="nowrap">${d.at ? esc(dateY(d.at)) : '—'}</td><td>${tnameLogo(nt, d.rid)}</td><td>${d.partner.map((r) => tnameLogo(nt, r)).join(' ')}</td>
       <td>${list(tr)}${tr.length > 1 ? `<div class="msum">= ${k(tv)}</div>` : ''}</td><td>${list(ex)}${ex.length > 1 ? `<div class="msum">= ${k(ev)}</div>` : ''}</td>
-      <td class="num"><b>${pct(d.share)}</b><div class="meta">${ex.length ? `${k(tv)} ÷ ${k(tv + ev)}` : 'all of it'}</div></td><td class="num">${k(d.full)}</td><td class="num"><b>${k(d.credited)}</b><div class="meta">${ex.length ? `${k(d.full)} × ${pct(d.share)}` : ''}</div></td></tr>`;
-  }).join('');
-  const pathHtml = (path, n) => [...path.map((p2) => `${esc(p2.label)} <span class="parrow">${p2.drafted ? '→ drafted' : `→ <span class="dno">D${p2.deal}</span>${p2.share < 0.995 ? ` <b class="pshare">${pct(p2.share)}</b>` : ''}`} →</span>`), `<b>${esc(nmOf(n))}</b>`].join(' ');
-  const sideBlock = (r) => {
-    const rs = rows.filter((x) => x.rid === r).sort((a, b) => b.attr - a.attr);
-    const tot = rs.reduce((a, x) => a + x.attr, 0);
-    const then = nt.deal && nt.deal[r] ? nt.deal[r].got : null;
-    const body = rs.map((x) => `<tr class="${x.value ? '' : 'faint-row'}"><td>${x.n.kind === 'pick' || x.n.round != null ? '<span class="pos PK">PK</span>' : posTag(P(x.n.sid).pos)} ${esc(nmOf(x.n))}<div class="meta">${esc(statusTxt(x.n))}</div></td>
-      <td class="small">${x.path.length ? pathHtml(x.path, x.n) : '<span class="faint">received in the original trade</span>'}</td>
-      <td class="num">${k(x.value)}</td><td class="num">${x.factor < 0.995 ? `× ${pct(x.factor)}` : '× 100%'}</td><td class="num"><b>${k(x.attr)}</b></td></tr>`).join('');
-    return `<tr class="mside"><td colspan="5">${tnameLogo(nt, r)} <span class="faint">got</span> ${(nt.recv[r] || []).map((a) => esc(a.kind === 'pick' ? a.label : a.name)).join(', ')}</td></tr>${body}
-      <tr class="mtotal"><td colspan="4">${esc(treeNm(nt, r))}: attributable residual value today${then != null ? ` · worth ${k(then)} at the trade · net <b class="${tot - then >= 0 ? 'up' : 'down'}">${sk(Math.round(tot - then))}</b>` : ''}</td><td class="num"><b>${k(tot)}</b></td></tr>`;
+      <td class="num"><b class="pshare">${pct(d.share)}</b><div class="meta">${ex.length ? `${k(tv)} ÷ ${k(tv + ev)}` : 'nothing added'}</div></td><td class="num">${k(d.full)}</td><td class="num"><b>${k(d.credited)}</b><div class="meta">${ex.length ? `${k(d.full)} × ${pct(d.share)}` : ''}</div></td></tr>`;
+  });
+
+  // Step 2: every asset, with value and points carried back by the share chain.
+  const pathHtml = (path, x) => [...path.map((p2) => `${esc(p2.label)} <span class="parrow">${p2.drafted ? '→ drafted' : `→ <span class="dno">D${p2.deal}</span>${p2.share < 0.995 ? ` <b class="pshare">${pct(p2.share)}</b>` : ''}`} →</span>`), `<b>${esc(nmOf(x))}</b>`].join(' ');
+  const sideTot = (r) => {
+    const rs = rows.filter((x) => x.rid === r);
+    return { v: rs.reduce((a, x) => a + (x.attrV || 0), 0), p: rs.reduce((a, x) => a + x.attrP, 0), rawP: rs.reduce((a, x) => a + x.pts, 0), rs };
   };
-  return `<div class="tdeal tmath"><div class="hd"><b>Attribution math</b><span class="faint small">how the tree's values are worked out</span></div>
-    <p class="small muted" style="margin:4px 0 10px">Each asset's <b>attributable value = value today × the tree's share of every later deal on its path</b>. The tree's share of a deal = what the tree's assets were worth on the day of that deal ÷ everything that team sent in it (${esc(deals.find((d) => d.src) ? deals.find((d) => d.src).src : 'KTC / DynastyProcess values at the time')}). Deals with nothing added from outside count 100%.</p>
-    ${deals.length ? `<h3 class="mh">Later deals</h3><div class="scroll"><table class="t tlist tmt"><thead><tr><th class="num">Deal</th><th>Date</th><th>Team</th><th>Traded to</th><th>From the tree (value then)</th><th>Added from outside (value then)</th><th class="num">Tree's share</th><th class="num">Got back (today)</th><th class="num">Credited to tree</th></tr></thead><tbody>${dealRows}</tbody></table></div>` : '<p class="muted">Nothing from this trade has been flipped yet, so every asset counts at 100%.</p>'}
-    <h3 class="mh">Residual value by asset</h3><div class="scroll"><table class="t tlist tmt"><thead><tr><th>Asset today</th><th>How it got there</th><th class="num">Value today</th><th class="num">× Tree's share</th><th class="num">= Attributable</th></tr></thead><tbody>${nt.rids.map(sideBlock).join('')}</tbody></table></div></div>`;
+  // Value today = credited assets (raw) + KTC package adjustment, the same calculator the trade was graded with.
+  const sideNow = (r) => { const tr = nt.tree[r] || {}; const adj = tr.adj || 0; const raw = sideTot(r).v; return { raw, adj, total: raw + adj }; };
+  const sideRows = (r) => {
+    const { p, rs } = sideTot(r);
+    const { raw, adj, total: v } = sideNow(r);
+    const then = treeThen(nt, r), thenAdj = treeThenAdj(nt, r);
+    const body = rs.map((x) => {
+      const dead = !x.flipped && !x.value && !x.pts;
+      return `<tr class="${dead ? 'faint-row' : ''}${x.flipped ? ' mflip' : ''}"><td>${tagOf(x.x)} ${esc(nmOf(x.x))}<div class="meta">${esc(statusTxt(x))}</div></td>
+      <td class="small">${x.path.length ? pathHtml(x.path, x.x) : '<span class="faint">in the original trade</span>'}</td>
+      <td class="small nowrap">${heldTxt(x)}</td>
+      <td class="num">${x.pts ? pf(x.pts) : '<span class="faint">0</span>'}</td>
+      <td class="num">${x.flipped ? `<span class="faint">→ D${x.flipped}</span>` : k(x.value)}</td>
+      <td class="num small">× ${chainTxt(x.chain)}</td>
+      <td class="num">${x.flipped ? '<span class="faint" title="Its value carries on through what came back in that deal">via D' + x.flipped + '</span>' : `<b>${k(x.attrV)}</b>`}</td>
+      <td class="num"><b>${x.attrP ? pf(x.attrP) : '<span class="faint">0</span>'}</b></td></tr>`;
+    });
+    const head = (cont) => `<tr class="mside"><td colspan="8">${tnameLogo(nt, r)} <span class="faint">got</span> ${(nt.recv[r] || []).map((a) => esc(a.kind === 'pick' ? a.label : a.name)).join(', ')}${cont ? ' <span class="faint">(continued)</span>' : ''}</td></tr>`;
+    const totalRows = `<tr class="msub"><td colspan="6">${esc(treeNm(nt, r))}: credited assets (plain sum)</td><td class="num">${k(raw)}</td><td class="num"><b>${pf(p)}</b></td></tr>
+      <tr class="msub"><td colspan="6">+ KTC package adjustment <span class="faint">(KTC's calculator credits the side with fewer, better pieces; ${adj ? 'this side gets it' : 'the other side gets it, or neither'})</span></td><td class="num">${adj ? `+${k(adj)}` : '0'}</td><td></td></tr>
+      <tr class="mtotal"><td colspan="6">= ${esc(treeNm(nt, r))}'s side worth today${then != null ? ` · at the trade ${k(then)}${thenAdj ? ` <span class="faint">(${k(then - thenAdj)} + ${k(thenAdj)} adj.)</span>` : ''} · change <b class="${v - then >= 0 ? 'up' : 'down'}">${sk(Math.round(v - then))}</b>` : ' · <span class="faint">no values from the time of the trade</span>'}</td><td class="num"><b>${k(v)}</b></td><td class="num"><b>${pf(p)}</b></td></tr>`;
+    return { head, body, total: totalRows };
+  };
+
+  // Plain-English summary per side, and one worked example.
+  const summary = nt.rids.map((r) => {
+    const { p } = sideTot(r);
+    const { raw, adj, total: v } = sideNow(r);
+    const then = treeThen(nt, r), thenAdj = treeThenAdj(nt, r);
+    return `<div class="msumcard">${tnameLogo(nt, r)}
+      <div class="mline"><span>Worth at the trade</span><b>${then != null ? k(then) : '—'}</b>${thenAdj ? `<em class="faint">incl. ${k(thenAdj)} adj.</em>` : ''}</div>
+      <div class="mline"><span>Worth today</span><b>${k(v)}</b>${adj ? `<em class="faint">incl. ${k(adj)} adj.</em>` : ''}${then != null ? `<em class="${v - then >= 0 ? 'up' : 'down'}">${sk(Math.round(v - then))}</em>` : ''}</div>
+      <div class="mline"><span>Starter points banked</span><b>${pf(p)}</b></div></div>`;
+  }).join('');
+  const ex = [...rows].filter((x) => x.value && x.chain.length).sort((a, b) => a.factor - b.factor || b.attrV - a.attrV)[0]
+    || [...rows].filter((x) => x.value || x.pts).sort((a, b) => (b.attrV || 0) - (a.attrV || 0))[0];
+  let example = '';
+  if (ex) {
+    const nm = esc(nmOf(ex.x)), who = esc(treeNm(nt, ex.rid));
+    const him = isPick(ex.x) ? 'it' : 'him', He = isPick(ex.x) ? 'It' : 'He';
+    const via = ex.chain.length ? `${nm} came through ${ex.chain.map((c) => `D${c.deal} (the tree supplied ${pct(c.share)} of what ${who} sent)`).join(' then ')}, so the tree owns ${ex.chain.length > 1 ? `${ex.chain.map((c) => pct(c.share)).join(' × ')} = ` : ''}<b>${pct(ex.factor)}</b> of ${him}.` : `${nm} came straight from the original trade, so the tree owns 100% of ${him}.`;
+    const val = ex.value ? ` ${He}'s worth ${k(ex.value)} today → credited <b>${k(ex.attrV)}</b>.` : '';
+    const pts = ex.pts ? ` ${He} started for ${who} ${ex.starts} time${ex.starts === 1 ? '' : 's'} and scored ${pf(ex.pts)} points → credited <b>${pf(ex.attrP)}</b>.` : '';
+    example = `<div class="mexample"><b>Example:</b> ${via}${val}${pts}</div>`;
+  }
+  const src = deals.find((d) => d.src) ? deals.find((d) => d.src).src : 'KTC / DynastyProcess values at the time';
+
+  const intro = `<div class="hd"><b>Attribution math</b><span class="faint small">how this tree's value and points are worked out</span></div>
+    <div class="msums">${summary}</div>
+    <ol class="msteps small">
+      <li><b>Split each later deal.</b> When a team flips something from this tree, it often adds other assets. The tree's share of that deal = what the tree's assets were worth that day ÷ everything the team sent (${esc(src)}).</li>
+      <li><b>Carry each asset back.</b> Every asset is multiplied by the shares of all the deals on its path. Its value today and the <b>starter points it scored while on the roster</b> both use that same multiplier. Points scored <i>before</i> an asset was flipped count at its own share (the deal hadn't happened yet).</li>
+      <li><b>Add it up, then use KTC's calculator.</b> The credited assets are summed, then KTC's package adjustment is added for the side holding fewer, better pieces (a star is worth more than the same value spread over many picks). The trade's "at the trade" values were graded the same way, so the two are comparable. Released players are worth 0 today but keep the points they scored. Only starting-lineup points count, not bench points.</li>
+    </ol>
+    ${example}`;
+  const dealTable = (rowsHtml, cont) => `<h3 class="mh"><span class="dno">1</span> Later deals${cont ? ' <span class="faint">(continued)</span>' : ''}</h3><div class="scroll"><table class="t tlist tmt"><thead><tr><th class="num">Deal</th><th>Date</th><th>Team</th><th>Traded to</th><th>From the tree (value then)</th><th>Added from outside (value then)</th><th class="num">Tree's share</th><th class="num">Got back (today)</th><th class="num">Credited to tree</th></tr></thead><tbody>${rowsHtml}</tbody></table></div>`;
+  const noDeals = `<h3 class="mh"><span class="dno">1</span> Later deals</h3><p class="muted small">Nothing from this trade has been flipped yet, so every asset counts at 100%.</p>`;
+  const assetTable = (rowsHtml, cont) => `<h3 class="mh"><span class="dno">2</span> Every asset: value today and points on the roster${cont ? ' <span class="faint">(continued)</span>' : ''}</h3>
+    <div class="scroll"><table class="t tlist tmt"><thead><tr><th>Asset</th><th>How it got there</th><th>On the roster</th><th class="num">Starter pts</th><th class="num">Value today</th><th class="num">× Tree's share</th><th class="num">= Credited value</th><th class="num">= Credited pts</th></tr></thead><tbody>${rowsHtml}</tbody></table></div>`;
+  const sides = nt.rids.map((r) => ({ r, ...sideRows(r) }));
+  // Print: hand back the pieces so the report can paginate long tables.
+  if (opts.parts) return { intro, dealTable, assetTable, noDeals, dealRows, sides };
+  return `<div class="tdeal tmath">${intro}
+    ${dealRows.length ? dealTable(dealRows.join(''), false) : noDeals}
+    ${assetTable(sides.map((x) => x.head(false) + x.body.join('') + x.total).join(''), false)}</div>`;
 }
 
-// League top 10 most lopsided trades, judged by what each side's tree is worth today.
-// By value: what each side's tree is worth today. By points: starter points the
-// players each side received have scored for it since the trade.
-const lopsidedBy = () => (S.ui.lopsidedBy === 'points' ? 'points' : 'value');
-function ptsGain(nt) {
-  const per = nt.rids.map((r) => ({ r, pts: nt.pts && nt.pts[r] ? nt.pts[r].gained : 0 }));
-  const sorted = [...per].sort((a, b) => b.pts - a.pts);
-  const tot = per.reduce((t, x) => t + x.pts, 0);
-  return { winner: sorted[0].r, loser: sorted[1].r, gap: Math.round((sorted[0].pts - sorted[1].pts) * 10) / 10, share: tot ? sorted[0].pts / tot : 0.5, wPts: sorted[0].pts, lPts: sorted[1].pts };
+// Each side of a trade tree: value on the day, credited value today, and starter points banked.
+function treeSides(nt) {
+  return nt.rids.map((r) => ({ r, then: treeThen(nt, r), now: nt.tree[r] ? nt.tree[r].total : 0, pts: nt.tree[r] ? nt.tree[r].pts || 0 : 0 }));
 }
-function lopsidedList(by = lopsidedBy()) {
-  return allTreeTrades().filter((nt) => nt.rids.length === 2).map((nt) => {
-    const gain = by === 'points' ? { ...treeGain(nt), ...ptsGain(nt) } : treeGain(nt);
-    return { nt, ...treeStats(nt), gain };
-  }).filter((x) => x.gain.gap > 0).sort((a, b) => b.gain.gap - a.gain.gap).slice(0, 10);
+const pts1 = (x) => (Math.round((x || 0) * 10) / 10).toLocaleString(undefined, { maximumFractionDigits: 1 });
+// Sort a ranking by one column (dir -1 = high first), nulls last.
+function rankBy(list, key, dir) {
+  return [...list].sort((a, b) => {
+    const va = a[key], vb = b[key];
+    if (va == null && vb == null) return 0;
+    if (va == null) return 1;
+    if (vb == null) return -1;
+    return (va - vb) * dir || b.nt.created - a.nt.created;
+  });
+}
+const rankTh = (st, action, key, label, title = '', extra = '') => `<th class="num sortable ${st.key === key ? 'on' : ''}" data-action="${action}" data-key="${key}" title="${esc(title)}"${extra}>${label}${st.key === key ? (st.dir < 0 ? ' ↓' : ' ↑') : ''}</th>`;
+
+// Small donut showing one side's share (green) against the other's (red), with the % in the middle.
+function splitDonut(pct, title = '') {
+  if (pct == null) return '<span class="faint">—</span>';
+  const r = 14, c = 2 * Math.PI * r, on = Math.max(0, Math.min(100, pct)) / 100 * c;
+  return `<svg class="donut" viewBox="0 0 36 36" width="40" height="40" role="img" aria-label="${pct}% / ${100 - pct}%"><title>${esc(title || `${pct}% / ${100 - pct}%`)}</title>
+    <circle cx="18" cy="18" r="${r}" class="dn-off"/><circle cx="18" cy="18" r="${r}" class="dn-on" stroke-dasharray="${on.toFixed(2)} ${(c - on).toFixed(2)}" transform="rotate(-90 18 18)"/>
+    <text x="18" y="18" class="dn-t">${pct}%</text></svg>`;
+}
+
+// League top 10 most lopsided trades. The ranking column decides both which ten make the list and
+// which side counts as "ahead": value columns judge by value today, point columns by starter points.
+const LOP_KEYS = { gap: 'Value gap today', ptsGap: 'Points gap', swing: 'Swing since the trade', ptsTot: 'Total starter points', g: 'Generations', created: 'Date' };
+function lopsidedList(st = S.ui.lop) {
+  const byPts = st.key === 'ptsGap' || st.key === 'ptsTot';
+  const rows = allTreeTrades().filter((nt) => nt.rids.length === 2).map((nt) => {
+    const sides = treeSides(nt);
+    const [a, b] = [...sides].sort((x, y) => (byPts ? y.pts - x.pts || y.now - x.now : y.now - x.now || y.pts - x.pts));
+    const tot = a.now + b.now;
+    const swing = a.then != null && b.then != null ? (a.now - b.now) - (a.then - b.then) : null;
+    return { nt, ...treeStats(nt), gain: treeGain(nt), a, b, gap: a.now - b.now, ptsGap: Math.round((a.pts - b.pts) * 10) / 10, ptsTot: Math.round((a.pts + b.pts) * 10) / 10, swing, share: tot ? a.now / tot : 0.5, created: nt.created };
+  }).filter((x) => (byPts ? x.ptsGap > 0 || (st.key === 'ptsTot' && x.ptsTot > 0) : x.gap > 0 || st.key === 'created' || st.key === 'g'));
+  return rankBy(rows, st.key, st.dir).slice(0, 10);
 }
 
 // ---- trade tree dashboard (neon) -------------------------------------------------------------
@@ -2728,7 +2843,7 @@ const tnameLogo = (nt, r, cls = '') => `<span class="tnl">${tmini(nt, r)}<b clas
 const sk = (v) => `${v >= 0 ? '+' : '−'}${k(Math.abs(v))}`;
 function netChange(list) {
   let then = 0, now = 0;
-  for (const nt of list) for (const r of nt.rids) { if (nt.deal && nt.deal[r]) { then += nt.deal[r].got; now += nt.tree[r].total; } }
+  for (const nt of list) for (const r of nt.rids) { const t0 = treeThen(nt, r); if (t0 != null) { then += t0; now += nt.tree[r].total; } }
   return now - then;
 }
 function mostActive(list) {
@@ -2819,12 +2934,21 @@ function viewTreePage(id) {
 
 // Trade trees with the most branches: how many times the deal's assets were flipped (both sides).
 function countBoxes(nodes) { return (nodes || []).reduce((a, c) => a + (c.kind === 'package' ? c.items.length : 1) + countBoxes(c.children), 0); }
-function branchesList() {
-  return allTreeTrades().map((nt) => ({ nt, ...treeStats(nt), gain: treeGain(nt),
-    br: nt.rids.reduce((a, r) => a + (nt.tree[r].branches || 0), 0),
-    boxes: nt.rids.reduce((a, r) => a + countBoxes(nt.tree[r].nodes), 0),
-    worth: nt.rids.reduce((a, r) => a + nt.tree[r].total, 0) }))
-    .filter((x) => x.br > 0).sort((a, b) => b.br - a.br || b.g - a.g || b.later - a.later || b.worth - a.worth).slice(0, 10);
+const BR_KEYS = { br: 'Branches', g: 'Generations', later: 'Later deals', boxes: 'Assets in tree', worth: 'Worth today', then: 'Worth at the trade', growth: 'Growth since the trade', pts: 'Starter points', created: 'Date' };
+function branchesList(st = S.ui.brs) {
+  const rows = allTreeTrades().map((nt) => {
+    const sides = treeSides(nt);
+    const then = sides.every((x) => x.then != null) ? sides.reduce((a, x) => a + x.then, 0) : null;
+    const worth = sides.reduce((a, x) => a + x.now, 0);
+    return { nt, ...treeStats(nt), gain: treeGain(nt), sides,
+      br: nt.rids.reduce((a, r) => a + (nt.tree[r].branches || 0), 0),
+      boxes: nt.rids.reduce((a, r) => a + countBoxes(nt.tree[r].nodes), 0),
+      worth, then, growth: then != null ? worth - then : null,
+      pts: Math.round(sides.reduce((a, x) => a + x.pts, 0) * 10) / 10, created: nt.created };
+  }).filter((x) => x.br > 0);
+  // Ties on the chosen column fall back to the usual branch order.
+  const base = [...rows].sort((a, b) => b.br - a.br || b.g - a.g || b.later - a.later || b.worth - a.worth);
+  return (st.key === 'br' && st.dir < 0 ? base : rankBy(base, st.key, st.dir)).slice(0, 10);
 }
 
 function viewBranches() {
@@ -2838,72 +2962,107 @@ function viewBranches() {
     { label: 'Later deals', value: top.reduce((a, x) => a + x.later, 0), sub: 'across these trees' },
   ];
   const extra = best ? `<div class="who2"><span>Biggest tree</span><div>${tmini(best.nt, best.nt.rids[0])}<div><b>${esc(best.nt.rids.map((r) => treeNm(best.nt, r)).join(' ⇄ '))}</b><em>${best.br} branches · ${esc(dateY(best.nt.created))}</em></div></div></div>` : '';
-  const row = (x, i) => `<tr><td class="num"><span class="rank">${i + 1}</span></td><td class="nowrap">${esc(dateY(x.nt.created))}</td>
+  const st = S.ui.brs;
+  const th = (key, label, title = '', extra = '') => rankTh(st, 'brSort', key, label, title, extra);
+  const sideCells = (x, r) => {
+    const sd = x.sides.find((y) => y.r === r);
+    return `<td class="num bl">${sd.then != null ? k(sd.then) : '<span class="faint">—</span>'}</td><td class="num"><b class="${sd.then != null ? (sd.now >= sd.then ? 'up' : 'down') : ''}">${k(sd.now)}</b></td><td class="num">${pts1(sd.pts)}</td>`;
+  };
+  const row = (x, i) => {
+    const [ra, rb] = x.nt.rids;
+    const two = x.nt.rids.length === 2;
+    return `<tr><td class="num"><span class="rank">${i + 1}</span></td><td class="nowrap">${esc(dateY(x.nt.created))}</td>
     <td>${x.nt.rids.map((r) => tnameLogo(x.nt, r)).join(' <span class="faint">⇄</span> ')}<div class="meta">${x.nt.rids.map((r) => `${esc(treeNm(x.nt, r))} got ${(x.nt.recv[r] || []).map((a) => esc(a.kind === 'pick' ? a.label : a.name)).slice(0, 3).join(', ')}${(x.nt.recv[r] || []).length > 3 ? '…' : ''}`).join(' · ')}</div></td>
-    <td class="num"><b>${x.br}</b></td><td class="num">${x.g}</td><td class="num">${x.later}</td><td class="num">${x.boxes}</td><td class="num">${k(x.worth)}</td>
+    <td class="num bl"><b>${x.br}</b></td><td class="num">${x.g}</td><td class="num">${x.later}</td><td class="num">${x.boxes}</td>
+    ${two ? `${sideCells(x, ra)}${sideCells(x, rb)}` : `<td colspan="6" class="bl small muted">${x.nt.rids.length}-team trade: ${x.sides.map((sd) => `${esc(treeNm(x.nt, sd.r))} ${sd.then != null ? `${k(sd.then)} → ` : ''}${k(sd.now)} · ${pts1(sd.pts)} pts`).join('<br>')}</td>`}
+    <td class="num bl">${x.then != null ? k(x.then) : '—'}</td><td class="num"><b>${k(x.worth)}</b></td><td class="num">${x.growth != null ? `<span class="${x.growth >= 0 ? 'up' : 'down'}">${sk(x.growth)}</span>` : '—'}</td><td class="num"><b>${pts1(x.pts)}</b></td>
     <td><a class="tbtn sm" href="#tree/${esc(x.nt.id)}">${TREE_ICON} Tree</a></td></tr>`;
+  };
   return `<div class="ttop">${heroCard(L.name || 'Your league', 'Most Branching Trades', 'The ten trades whose players and picks have been flipped the most times since — the league\'s biggest trade trees.')}${sumCard(tiles, extra)}${legendCard()}</div>
-    <div class="ttool"><a class="tbtn" href="#tree">${TREE_ICON} All trade trees</a><a class="tbtn" href="#lopsided">Most lopsided ›</a><span style="flex:1"></span><span class="tlab">Branches = times an asset from the deal was flipped (traded on, or a pick spent), both sides counted.</span><button class="tcta sm" data-action="treePdf" data-kind="branches">${icon('note')} Download PDF report</button></div>
-    <div class="tcanvas tlw"><table class="t tlist"><thead><tr><th class="num">#</th><th>Date</th><th>Trade</th><th class="num">Branches</th><th class="num">Gens</th><th class="num">Later deals</th><th class="num">Assets in tree</th><th class="num">Worth today</th><th></th></tr></thead><tbody>${top.map(row).join('') || '<tr><td colspan="9" class="muted">No trade has been flipped on yet.</td></tr>'}</tbody></table></div>`;
+    <div class="ttool"><a class="tbtn" href="#tree">${TREE_ICON} All trade trees</a><a class="tbtn" href="#lopsided">Most lopsided ›</a><span style="flex:1"></span><span class="tlab">Top 10 by <b>${esc(BR_KEYS[st.key] || st.key)}</b>. Click any column to re-rank. Branches = times an asset from the deal was flipped (traded on, or a pick spent), both sides counted.</span><button class="tcta sm" data-action="treePdf" data-kind="branches">${icon('note')} Download PDF report</button><button class="tbtn" data-action="treeJpg" data-kind="branches" title="A cover image plus one tall image per trade (tree + full accounting), zipped">JPGs (.zip)</button></div>
+    <div class="tcanvas tlw scroll"><table class="t tlist trank"><thead>
+      <tr class="grp"><th colspan="3"></th><th colspan="4" class="bl">Tree</th><th colspan="3" class="bl">Side 1</th><th colspan="3" class="bl">Side 2</th><th colspan="4" class="bl">Whole trade</th><th></th></tr>
+      <tr><th class="num">#</th>${th('created', 'Date', '', ' style="text-align:left"')}<th>Trade</th>${th('br', 'Branches', 'Times an asset from the deal was flipped', ' data-bl="1"')}${th('g', 'Gens')}${th('later', 'Later deals')}${th('boxes', 'Assets')}
+      <th class="num bl">At trade</th><th class="num">Today</th><th class="num" title="Starting-lineup points credited to this side's tree">Pts</th>
+      <th class="num bl">At trade</th><th class="num">Today</th><th class="num" title="Starting-lineup points credited to this side's tree">Pts</th>
+      ${th('then', 'At trade', 'Both sides together, valued on the day', ' data-bl="1"')}${th('worth', 'Today', 'Both trees together, credited value today')}${th('growth', 'Growth', 'Today minus at the trade')}${th('pts', 'Pts', 'Starter points both trees have banked')}<th></th></tr></thead>
+      <tbody>${top.map(row).join('') || '<tr><td colspan="18" class="muted">No trade has been flipped on yet.</td></tr>'}</tbody></table></div>
+    <p class="small faint" style="margin-top:6px">Side 1 / Side 2 follow the order the trade lists the teams. "Pts" = starting-lineup points each side's tree has banked, credited the same way as value (see a tree's Attribution math).</p>`;
 }
 
 function viewLopsided() {
-  const by = lopsidedBy();
-  const pts = by === 'points';
-  const top = lopsidedList(by);
-  const gapTxt = (g) => (pts ? `${Math.round(g)} pts` : k(g));
+  const st = S.ui.lop;
+  const byPts = st.key === 'ptsGap' || st.key === 'ptsTot';
+  const top = lopsidedList(st);
   const L = S.raw.league || {};
-  const atTrade = (nt, r) => (nt.deal && nt.deal[r] ? nt.deal[r].got : null);
   const biggest = top[0];
-  const flips = top.filter((x) => { const w = x.gain.winner, l = x.gain.loser; const tw = atTrade(x.nt, w), tl = atTrade(x.nt, l); return tw != null && tl != null && tw < tl; }).length;
+  const flips = top.filter((x) => x.swing != null && x.a.then != null && x.b.then != null && x.a.then < x.b.then).length;
+  // Trades where the value winner and the points winner are different teams.
+  const split = top.filter((x) => x.a.pts !== x.b.pts && x.a.now !== x.b.now && (x.a.now > x.b.now) !== (x.a.pts > x.b.pts)).length;
   const tiles = [
-    { label: 'Trades ranked', value: top.length },
-    { label: pts ? 'Biggest points gap' : 'Biggest gap', value: biggest ? gapTxt(biggest.gain.gap) : '—', cls: 'up' },
-    { label: 'Flipped in hindsight', value: flips, sub: 'lost on the day, won today' },
-    { label: 'Deepest tree', value: top.length ? Math.max(...top.map((x) => x.g)) : 0, sub: 'generations' },
+    { label: 'Trades ranked', value: top.length, sub: `by ${LOP_KEYS[st.key] ? LOP_KEYS[st.key].toLowerCase() : st.key}` },
+    byPts ? { label: 'Biggest points gap', value: biggest ? pts1(biggest.ptsGap) : '—', cls: 'up' } : { label: 'Biggest gap', value: biggest ? k(biggest.gap) : '—', cls: 'up' },
+    { label: 'Flipped in hindsight', value: flips, sub: 'lost on the day, ahead today' },
+    { label: 'Value ≠ points winner', value: split, sub: 'one side has the value, the other the points' },
   ];
-  const w = biggest ? biggest.gain.winner : null;
-  const extra = biggest ? `<div class="who2"><span>Biggest winner</span><div>${teamAvatar(team(w))}<div><b>${esc(treeNm(biggest.nt, w))}</b><em>+${gapTxt(biggest.gain.gap)} on ${esc(dateY(biggest.nt.created))}</em></div></div></div>` : '';
+  const w = biggest ? biggest.a.r : null;
+  const extra = biggest ? `<div class="who2"><span>Biggest winner</span><div>${teamAvatar(team(w))}<div><b>${esc(treeNm(biggest.nt, w))}</b><em>${byPts ? `+${pts1(biggest.ptsGap)} pts` : `+${k(biggest.gap)}`} on ${esc(dateY(biggest.nt.created))}</em></div></div></div>` : '';
+  const th = (key, label, title = '', extra2 = '') => rankTh(st, 'lopSort', key, label, title, extra2);
+  const got = (nt, r) => (nt.recv[r] || []).map((y) => esc(y.kind === 'pick' ? y.label : y.name)).join(', ');
+  const side = (sd, cls) => `<td class="num">${sd.then != null ? k(sd.then) : '<span class="faint">—</span>'}</td><td class="num"><b class="${cls}">${k(sd.now)}</b>${sd.then != null ? `<div class="meta ${sd.now >= sd.then ? 'up' : 'down'}">${sk(sd.now - sd.then)}</div>` : ''}</td><td class="num">${pts1(sd.pts)}</td>`;
   const row = (x, i) => {
-    const { nt, gain } = x;
-    const wn = gain.winner, ln = gain.loser;
-    const tw = atTrade(nt, wn), tl = atTrade(nt, ln);
-    const thenPct = tw != null && tl != null ? Math.round(tw / ((tw + tl) || 1) * 100) : null;
-    const nowPct = Math.round(gain.share * 100);
+    const { nt, a, b } = x;
+    const thenPct = a.then != null && b.then != null ? Math.round(a.then / ((a.then + b.then) || 1) * 100) : null;
+    const nowPct = Math.round(x.share * 100);
+    const ptsDiff = x.ptsGap;
     return `<tr><td class="num"><span class="rank">${i + 1}</span></td><td class="nowrap">${esc(dateY(nt.created))}</td>
-      <td>${tnameLogo(nt, wn, 'up')} <span class="faint">over</span> ${tnameLogo(nt, ln, 'down')}<div class="meta">${esc(treeNm(nt, wn))} got ${(nt.recv[wn] || []).map((a) => esc(a.kind === 'pick' ? a.label : a.name)).join(', ')} · ${esc(treeNm(nt, ln))} got ${(nt.recv[ln] || []).map((a) => esc(a.kind === 'pick' ? a.label : a.name)).join(', ')}</div></td>
-      <td class="num">${thenPct != null ? `${thenPct}% / ${100 - thenPct}%` : '—'}</td>
-      <td class="num"><div class="split2"><i style="width:${nowPct}%"></i></div><b>${nowPct}%</b> / ${100 - nowPct}%</td>${pts ? `<td class="num">${Math.round(gain.wPts)} / ${Math.round(gain.lPts)}</td>` : ''}<td class="num"><b>${gapTxt(gain.gap)}</b></td><td class="num">${x.g}</td>
+      <td class="bl lside">${tnameLogo(nt, a.r, 'up')}<div class="meta">got ${got(nt, a.r)}</div></td>${side(a, 'up')}
+      <td class="bl lside">${tnameLogo(nt, b.r, 'down')}<div class="meta">got ${got(nt, b.r)}</div></td>${side(b, 'down')}
+      <td class="num bl dncell">${splitDonut(thenPct, thenPct != null ? `At the trade: ${treeNm(nt, a.r)} ${thenPct}% · ${treeNm(nt, b.r)} ${100 - thenPct}%` : '')}</td>
+      <td class="num dncell">${splitDonut(nowPct, `Today: ${treeNm(nt, a.r)} ${nowPct}% · ${treeNm(nt, b.r)} ${100 - nowPct}%`)}</td>
+      <td class="num"><b class="${x.gap >= 0 ? '' : 'down'}">${x.gap >= 0 ? k(x.gap) : sk(x.gap)}</b></td>
+      <td class="num">${x.swing != null ? `<span class="${x.swing >= 0 ? 'up' : 'down'}">${sk(x.swing)}</span>` : '—'}</td>
+      <td class="num"><b class="${ptsDiff > 0 ? '' : ptsDiff < 0 ? 'down' : 'faint'}">${ptsDiff >= 0 ? pts1(ptsDiff) : `−${pts1(-ptsDiff)}`}</b></td>
+      <td class="num">${x.g}</td>
       <td><a class="tbtn sm" href="#tree/${esc(nt.id)}">${TREE_ICON} Tree</a></td></tr>`;
   };
-  return `<div class="ttop">${heroCard(L.name || 'Your league', 'Most Lopsided Trades', pts ? 'The ten trades where one side\'s new players have outscored the other\'s by the most, in starter points since the deal.' : 'The ten trades whose two sides have grown furthest apart, counting everything each haul turned into.')}${sumCard(tiles, extra)}${legendCard()}</div>
-    <div class="ttool"><a class="tbtn" href="#tree">${TREE_ICON} All trade trees</a><a class="tbtn" href="#branches">Most branches ›</a><span class="tseg"><button class="tbtn sm ${pts ? '' : 'on'}" data-action="lopsidedBy" data-by="value">By value</button><button class="tbtn sm ${pts ? 'on' : ''}" data-action="lopsidedBy" data-by="points">By points</button></span><span style="flex:1"></span><span class="tlab">${pts ? '"Today" is the split of starter points scored since the trade. Points only count games started for the team that got the player.' : '"At the trade" is the value split on the day; "today" is the tree split now.'}</span><button class="tcta sm" data-action="treePdf" data-kind="lopsided">${icon('note')} Download PDF report</button></div>
-    <div class="tcanvas tlw"><table class="t tlist"><thead><tr><th class="num">#</th><th>Date</th><th>Trade</th><th class="num">At the trade</th><th class="num">Today</th>${pts ? '<th class="num">Points</th>' : ''}<th class="num">${pts ? 'Points gap' : 'Gap'}</th><th class="num">Gens</th><th></th></tr></thead><tbody>${top.map(row).join('') || '<tr><td colspan="${pts ? 9 : 8}" class="muted">No completed two-team trades yet.</td></tr>'}</tbody></table></div>`;
+  return `<div class="ttop">${heroCard(L.name || 'Your league', 'Most Lopsided Trades', byPts ? 'The ten trades where one side\'s haul has put far more points in its starting lineup than the other\'s.' : 'The ten trades whose two sides have grown furthest apart, counting everything each haul turned into.')}${sumCard(tiles, extra)}${legendCard()}</div>
+    <div class="ttool"><a class="tbtn" href="#tree">${TREE_ICON} All trade trees</a><a class="tbtn" href="#branches">Most branches ›</a>
+      <span class="tlab">Rank by:</span><div class="seg"><button class="${!byPts && st.key === 'gap' ? 'on' : ''}" data-action="lopSort" data-key="gap" data-dir="-1">Value gap</button><button class="${st.key === 'ptsGap' ? 'on' : ''}" data-action="lopSort" data-key="ptsGap" data-dir="-1">Points gap</button></div>
+      <span style="flex:1"></span><span class="tlab">${byPts ? '"Ahead" = more starter points.' : '"Ahead" = more value today.'} Click any column to re-rank.</span><button class="tcta sm" data-action="treePdf" data-kind="lopsided">${icon('note')} Download PDF report</button><button class="tbtn" data-action="treeJpg" data-kind="lopsided" title="A cover image plus one tall image per trade (tree + full accounting), zipped">JPGs (.zip)</button></div>
+    <div class="tcanvas tlw scroll"><table class="t tlist trank"><thead>
+      <tr class="grp"><th colspan="2"></th><th colspan="4" class="bl">Side ahead</th><th colspan="4" class="bl">Other side</th><th colspan="7" class="bl">Comparison</th></tr>
+      <tr><th class="num">#</th>${th('created', 'Date', '', ' style="text-align:left"')}
+      <th class="bl">Team · got</th><th class="num">At trade</th><th class="num">Today</th><th class="num" title="Starting-lineup points credited to this side's tree">Pts</th>
+      <th class="bl">Team · got</th><th class="num">At trade</th><th class="num">Today</th><th class="num" title="Starting-lineup points credited to this side's tree">Pts</th>
+      <th class="num bl" title="Side ahead's share of the value on the day">Split then</th><th class="num" title="Side ahead's share of the value today">Split today</th>
+      ${th('gap', 'Value gap', 'Side ahead minus other side, value today')}${th('swing', 'Swing', 'How much the gap moved since the trade: today\'s gap minus the gap on the day')}${th('ptsGap', 'Pts gap', 'Side ahead minus other side, starter points')}${th('g', 'Gens')}<th></th></tr></thead>
+      <tbody>${top.map(row).join('') || '<tr><td colspan="17" class="muted">No completed two-team trades yet.</td></tr>'}</tbody></table></div>
+    <p class="small faint" style="margin-top:6px">Pts = starting-lineup points each side's tree has banked, credited the same way as value (see a tree's Attribution math). A negative gap means the side ahead on ${byPts ? 'points trails on value' : 'value trails on points'}.</p>`;
 }
 
 // PDF report: same neon look, printed (Chrome → Save as PDF).
-function printTreeReport(kind = 'lopsided') {
+function printTreeReport(kind = 'lopsided', mode = 'pdf') {
   const isBr = kind === 'branches';
-  const byPts = !isBr && lopsidedBy() === 'points';
-  const gapTxt = (g) => (byPts ? `${Math.round(g)} pts` : k(g));
   const top = isBr ? branchesList() : lopsidedList();
   const L = S.raw.league || {};
   const date = new Date().toLocaleDateString([], { year: 'numeric', month: 'long', day: 'numeric' });
-  const atTrade = (nt, r) => (nt.deal && nt.deal[r] ? nt.deal[r].got : null);
   // Cover: hero, summary, and a one-line-per-trade top-10 table that always fits the page.
   const lop = isBr ? viewBranches() : viewLopsided();
   const heroSum = lop.slice(0, lop.indexOf('<div class="ttool">'));
-  const coverRows = isBr ? top.map((x, i) => `<tr><td class="num"><span class="rank">${i + 1}</span></td><td class="nowrap">${esc(dateY(x.nt.created))}</td><td class="nowrap">${x.nt.rids.map((r) => tnameLogo(x.nt, r)).join(' <span class="faint">⇄</span> ')}</td><td><div class="clip">${esc(x.nt.rids.map((r) => `${treeNm(x.nt, r)} got ${(x.nt.recv[r] || []).map((a) => (a.kind === 'pick' ? a.label : a.name)).join(', ')}`).join(' · '))}</div></td><td class="num"><b>${x.br}</b></td><td class="num">${x.g}</td><td class="num">${x.later}</td><td class="num">${k(x.worth)}</td><td class="num">p.${i + 2}</td></tr>`).join('') : top.map((x, i) => {
-    const { nt, gain } = x; const w = gain.winner, l = gain.loser;
-    const tw = atTrade(nt, w), tl = atTrade(nt, l);
-    const thenPct = tw != null && tl != null ? Math.round(tw / ((tw + tl) || 1) * 100) : null;
-    const nowPct = Math.round(gain.share * 100);
-    const gotW = (nt.recv[w] || []).map((a) => (a.kind === 'pick' ? a.label : a.name)).join(', ');
-    return `<tr><td class="num"><span class="rank">${i + 1}</span></td><td class="nowrap">${esc(dateY(nt.created))}</td><td class="nowrap">${tnameLogo(nt, w, 'up')} <span class="faint">over</span> ${tnameLogo(nt, l, 'down')}</td><td><div class="clip">${esc(treeNm(nt, w))} got ${esc(gotW)}</div></td><td class="num">${thenPct != null ? `${thenPct}/${100 - thenPct}` : '—'}</td><td class="num"><b>${nowPct}/${100 - nowPct}</b></td><td class="num"><b>${gapTxt(gain.gap)}</b></td><td class="num">${x.g}</td><td class="num">p.${i + 2}</td></tr>`;
-  }).join('');
+  // Cover table: the same expanded, ranked table as the page, with the last column showing each trade's page.
+  const tStart = lop.indexOf('<div class="tcanvas tlw scroll">');
+  const tEnd = lop.indexOf('</table></div>', tStart) + '</table></div>'.length;
+  const lastTh = '<th></th></tr></thead>';
+  let table = tStart >= 0 ? lop.slice(tStart, tEnd) : '';
+  const li = table.lastIndexOf(lastTh);
+  if (li >= 0) table = `${table.slice(0, li)}<th class="num">Page</th></tr></thead>${table.slice(li + lastTh.length)}`;
+  table = table.replace('class="tcanvas tlw scroll"', 'class="tcanvas tlw pr-covtable"');
+  const st = isBr ? S.ui.brs : S.ui.lop;
+  const rankedBy = (isBr ? BR_KEYS : LOP_KEYS)[st.key] || st.key;
   const cover = `<section class="pr-page pr-cover">${heroSum}
-    <div class="tcanvas tlw"><table class="t tlist"><thead>${isBr ? '<tr><th class="num">#</th><th>Date</th><th>Trade</th><th>What each side got</th><th class="num">Branches</th><th class="num">Gens</th><th class="num">Later deals</th><th class="num">Worth today</th><th class="num">Tree</th></tr>' : '<tr><th class="num">#</th><th>Date</th><th>Winner</th><th>What the winner got</th><th class="num">At trade</th><th class="num">Today</th><th class="num">' + (byPts ? 'Points gap' : 'Gap') + '</th><th class="num">Gens</th><th class="num">Tree</th></tr>'}</thead><tbody>${coverRows}</tbody></table></div>
-    <p class="pr-foot">${esc(L.name || '')} · generated ${esc(date)} · values from KeepTradeCut${isBr ? ' · branches = times an asset from the deal was flipped' : ' · "at trade" and "today" are each side\'s share of the value'}</p></section>`;
+    ${table}
+    <p class="pr-foot">${esc(L.name || '')} · generated ${esc(date)} · top 10 ranked by ${esc(rankedBy.toLowerCase())}${st.dir > 0 ? ' (lowest first)' : ''} · values from KeepTradeCut · pts = starting-lineup points credited to each side's tree · ${isBr ? 'branches = times an asset from the deal was flipped' : '"ahead" = ' + (st.key === 'ptsGap' || st.key === 'ptsTot' ? 'more starter points' : 'more value today')} · each trade's tree is followed by its full accounting</p></section>`;
 
   let host = document.getElementById('print');
   if (!host) { host = document.createElement('div'); host.id = 'print'; document.body.appendChild(host); }
@@ -2922,6 +3081,75 @@ function printTreeReport(kind = 'lopsided') {
     return r;
   };
   const fitZ = (m, availH) => Math.min(1, (CONTENT_W - 30) / m.w, availH / m.h);
+  // Shrink the cover table if the expanded columns or ten rows don't fit the page.
+  {
+    const cov = host.querySelector('.pr-cover');
+    const tw = cov && cov.querySelector('.pr-covtable');
+    if (tw) {
+      cov.style.width = `${CONTENT_W}px`;
+      const tbl = tw.querySelector('table');
+      const over = cov.scrollHeight - (PAGE_H - 70);
+      const zH = over > 0 ? (tw.scrollHeight - over) / tw.scrollHeight : 1;
+      const zW = tbl && tbl.scrollWidth > CONTENT_W ? CONTENT_W / tbl.scrollWidth : 1;
+      const z = Math.max(0.5, Math.min(1, zH, zW));
+      if (z < 1) tw.style.zoom = z;
+      cov.style.width = '';
+    }
+  }
+  // Full accounting pages: the attribution ledger, split across pages without clipping.
+  const measureMath = (html) => {
+    const d = document.createElement('div');
+    d.className = 'tdeal tmath pr-math';
+    d.style.width = `${CONTENT_W}px`;
+    d.innerHTML = html;
+    host.appendChild(d);
+    const h = d.scrollHeight;
+    d.remove();
+    return h;
+  };
+  const mathPages = (nt, avail) => {
+    const M = attributionTables(nt, { parts: true });
+    const items = [{ t: 'b', html: M.intro }];
+    if (M.dealRows.length) M.dealRows.forEach((h) => items.push({ t: 'd', html: h }));
+    else items.push({ t: 'b', html: M.noDeals });
+    for (const sd of M.sides) {
+      items.push({ t: 'a', html: sd.head(false), r: sd.r, head: true });
+      sd.body.forEach((h) => items.push({ t: 'a', html: h, r: sd.r }));
+      items.push({ t: 'a', html: sd.total, r: sd.r });
+    }
+    const headOf = (r) => M.sides.find((x) => x.r === r).head(true);
+    // Consecutive deal rows go in one deals table, asset rows in one asset table; a table that
+    // already started on an earlier page is marked "continued".
+    const compose = (list, seen) => {
+      let out = '';
+      for (let i = 0; i < list.length;) {
+        const it = list[i];
+        if (it.t === 'b') { out += it.html; i++; continue; }
+        let j = i;
+        while (j < list.length && list[j].t === it.t) j++;
+        const rows = list.slice(i, j).map((x) => x.html).join('');
+        out += it.t === 'd' ? M.dealTable(rows, seen.has('d')) : M.assetTable(rows, seen.has('a'));
+        i = j;
+      }
+      return out;
+    };
+    const pages = [];
+    let cur = [], seen = new Set(), startSeen = new Set();
+    const flush = () => { pages.push({ list: cur, seen: startSeen }); cur.forEach((x) => seen.add(x.t)); startSeen = new Set(seen); };
+    for (const it of items) {
+      if (!cur.length || measureMath(compose([...cur, it], startSeen)) <= avail) { cur.push(it); continue; }
+      // Don't leave a side's header row alone at the bottom of a page.
+      const carry = cur.length > 1 && cur[cur.length - 1].head ? cur.pop() : null;
+      flush();
+      cur = carry ? [carry, it] : it.t === 'a' && !it.head ? [{ t: 'a', html: headOf(it.r), r: it.r, head: true }, it] : [it];
+    }
+    if (cur.length) flush();
+    return pages.map((pg) => {
+      const html = compose(pg.list, pg.seen);
+      const h = measureMath(html);
+      return { html, z: h > avail ? Math.max(0.4, avail / h) : 1 };
+    });
+  };
 
   top.forEach((x, i) => {
     const nt = x.nt, g = x.gain;
@@ -2930,13 +3158,15 @@ function printTreeReport(kind = 'lopsided') {
       { label: 'Generations', value: x.g },
       { label: 'Later deals', value: x.later },
       { label: 'Worth today', value: k(x.worth) },
+      { label: 'Starter pts', value: pts1(x.pts) },
     ] : [
-      { label: byPts ? 'Points gap' : 'Gap today', value: gapTxt(g.gap), cls: 'up' },
-      { label: 'Split today', value: `${Math.round(g.share * 100)}% / ${100 - Math.round(g.share * 100)}%` },
+      { label: 'Gap today', value: k(x.gap), cls: 'up' },
+      { label: 'Split today', value: `${Math.round(x.share * 100)}% / ${100 - Math.round(x.share * 100)}%` },
+      { label: 'Pts gap', value: pts1(x.ptsGap) },
       { label: 'Generations', value: x.g },
       { label: 'Later deals', value: x.later },
     ];
-    const header = (cont) => `<div class="thero small"><div class="ico"><span class="rankbig">#${i + 1}</span></div><div><div class="eyebrow">${esc(L.name || '')} · traded ${esc(dateY(nt.created))}${cont ? ' · continued' : ''}</div><h1 class="h1logos">${nt.rids.map((r) => `${tmini(nt, r)}${esc(treeNm(nt, r))}`).join('<i>⇄</i>')}</h1>${cont ? '' : `<p>${esc(treeLead(nt))}</p>`}</div>${cont ? '' : `<div class="prstats">${tiles.map((t) => `<div><span>${esc(t.label)}</span><b class="${t.cls || ''}">${t.value}</b></div>`).join('')}</div>`}<div class="glow"></div></div>`;
+    const header = (cont, tag = 'continued') => `<div class="thero small"><div class="ico"><span class="rankbig">#${i + 1}</span></div><div><div class="eyebrow">${esc(L.name || '')} · traded ${esc(dateY(nt.created))}${cont ? ` · ${tag}` : ''}</div><h1 class="h1logos">${nt.rids.map((r) => `${tmini(nt, r)}${esc(treeNm(nt, r))}`).join('<i>⇄</i>')}</h1>${cont ? '' : `<p>${esc(treeLead(nt))}</p>`}</div>${cont ? '' : `<div class="prstats">${tiles.map((t) => `<div><span>${esc(t.label)}</span><b class="${t.cls || ''}">${t.value}</b></div>`).join('')}</div>`}<div class="glow"></div></div>`;
     const deal = `<div class="tdeal"><div class="hd"><b>The original trade</b><span class="faint small">values at the trade → today</span></div>${treeDealSummary(nt)}</div>`;
     // How much height the tree gets on the first page vs a continuation page.
     const sec = document.createElement('section');
@@ -2998,6 +3228,20 @@ function printTreeReport(kind = 'lopsided') {
       if (pi > 0 && !pg.cont) el.classList.add('cont');
       host.appendChild(el);
     });
+    // Then the full accounting for this trade.
+    const hs = document.createElement('section');
+    hs.className = 'pr-page pr-trade';
+    hs.innerHTML = header(true, 'full accounting');
+    host.appendChild(hs);
+    const mathAvail = PAGE_H - 38 - hs.scrollHeight - 50;
+    hs.remove();
+    const mp = mathPages(nt, mathAvail);
+    mp.forEach((pg, pi) => {
+      const el = document.createElement('section');
+      el.className = 'pr-page pr-trade pr-mathpage';
+      el.innerHTML = `${header(true, `full accounting${mp.length > 1 ? ` ${pi + 1}/${mp.length}` : ''}`)}<div class="tdeal tmath pr-math"${pg.z < 1 ? ` style="zoom:${pg.z}"` : ''}>${pg.html}</div>`;
+      host.appendChild(el);
+    });
   });
   // Page numbers on the cover table now that pages are known.
   const secs = [...host.querySelectorAll('section.pr-trade')];
@@ -3016,6 +3260,127 @@ function printTreeReport(kind = 'lopsided') {
     Promise.all(imgs.map((im) => (im.complete ? Promise.resolve() : new Promise((res) => { im.addEventListener('load', res); im.addEventListener('error', res); })))),
     new Promise((res) => setTimeout(res, 4000)),
   ]).then(() => setTimeout(() => window.print(), 80));
+}
+
+// The report as JPGs in a zip: a full-size cover, then ONE tall image per trade (header, original
+// trade, the whole tree and its full accounting). Not tied to letter pages, so nothing is shrunk
+// to fit or split. Pages are built with the print styles injected, then each is drawn as a JPG.
+let jpgBusy = false;
+const IMG_PAD = 48;
+async function exportReportJpgs(kind) {
+  if (jpgBusy) return;
+  jpgBusy = true;
+  const toast = document.createElement('div');
+  toast.className = 'jpgtoast';
+  toast.textContent = 'Building images…';
+  document.body.appendChild(toast);
+  const shot = await import('../lib/pageshot.js');
+  const style = document.createElement('style');
+  style.id = 'img-print-css';
+  style.textContent = shot.collectPrintCss();
+  document.head.appendChild(style);
+  let host = document.getElementById('print');
+  if (!host) { host = document.createElement('div'); host.id = 'print'; document.body.appendChild(host); }
+  host.innerHTML = '';
+  host.style.cssText = 'display:block;position:absolute;left:-30000px;top:0;';
+  const L = S.raw.league || {};
+  const slug = (x) => String(x || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+  const zipName = `${slug(L.name) || 'league'}-${kind === 'branches' ? 'most-branches' : 'most-lopsided'}-${new Date().toISOString().slice(0, 10)}.zip`;
+  try {
+    buildImageReport(host, kind);
+    await shot.embeddedFontCss();
+    const n = await shot.downloadPagesAsZip(host, zipName, (sec) => sec.dataset.name, {
+      selector: 'section.img-page', scale: 1.5,
+      sizeOf: (sec) => ({ w: sec.offsetWidth, h: Math.ceil(sec.scrollHeight) }),
+      onProgress: (d, t) => { toast.textContent = d < t ? `Rendering image ${d + 1} of ${t}…` : 'Zipping…'; },
+    });
+    toast.textContent = `Downloaded ${n} JPGs (${zipName})`;
+  } catch (e) {
+    toast.textContent = `Couldn't make the JPGs: ${e && e.message ? e.message : e}`;
+    toast.classList.add('err');
+  } finally {
+    host.innerHTML = '';
+    host.style.cssText = '';
+    style.remove();
+    jpgBusy = false;
+    setTimeout(() => toast.remove(), 6000);
+  }
+}
+
+function buildImageReport(host, kind) {
+  const isBr = kind === 'branches';
+  const top = isBr ? branchesList() : lopsidedList();
+  const L = S.raw.league || {};
+  const date = new Date().toLocaleDateString([], { year: 'numeric', month: 'long', day: 'numeric' });
+  const pad = (n) => String(n).padStart(2, '0');
+  const st = isBr ? S.ui.brs : S.ui.lop;
+  const rankedBy = ((isBr ? BR_KEYS : LOP_KEYS)[st.key] || st.key).toLowerCase();
+  const foot = `${esc(L.name || '')} · generated ${esc(date)} · values from KeepTradeCut, compared with KTC's trade calculator · pts = starting-lineup points credited to each side's tree`;
+
+  // Cover: the page's own hero, summary and ranked table, at full size.
+  const lop = isBr ? viewBranches() : viewLopsided();
+  const heroSum = lop.slice(0, lop.indexOf('<div class="ttool">'));
+  const tStart = lop.indexOf('<div class="tcanvas tlw scroll">');
+  const tEnd = lop.indexOf('</table></div>', tStart) + '</table></div>'.length;
+  const table = tStart >= 0 ? lop.slice(tStart, tEnd).replace('class="tcanvas tlw scroll"', 'class="tcanvas tlw img-table"') : '';
+  const cover = document.createElement('section');
+  cover.className = 'img-page img-cover';
+  cover.dataset.name = '00-cover';
+  cover.style.width = '1900px';
+  cover.innerHTML = `${heroSum}<div class="img-rank">Top 10 ranked by <b>${esc(rankedBy)}</b>${st.dir > 0 ? ' (lowest first)' : ''}</div>${table}<p class="img-foot">${foot}</p>`;
+  host.appendChild(cover);
+  // Drop the "Tree" button column (links mean nothing in an image); shrink the group row's last span to match.
+  const tbl = cover.querySelector('table.trank');
+  if (tbl) {
+    for (const tr of tbl.querySelectorAll('tr')) {
+      const last = tr.lastElementChild;
+      if (!last) continue;
+      if (tr.classList.contains('grp')) { const cs = Number(last.getAttribute('colspan') || 1); if (cs > 1) last.setAttribute('colspan', cs - 1); else last.remove(); }
+      else if (Number(last.getAttribute('colspan') || 1) === 1) last.remove();
+    }
+  }
+
+  // One tall image per trade.
+  const measure = (html, w) => {
+    const d = document.createElement('div');
+    d.className = 'tcanvas ftwrap pr-tree';
+    d.style.width = `${w}px`;
+    d.innerHTML = html;
+    host.appendChild(d);
+    const fts = [...d.querySelectorAll('.ft')];
+    const r = { w: Math.max(...fts.map((f) => f.scrollWidth)), h: d.scrollHeight };
+    d.remove();
+    return r;
+  };
+  top.forEach((x, i) => {
+    const nt = x.nt;
+    const tiles = isBr ? [
+      { label: 'Branches', value: x.br, cls: 'up' }, { label: 'Generations', value: x.g }, { label: 'Later deals', value: x.later },
+      { label: 'Worth today', value: k(x.worth) }, { label: 'Starter pts', value: pts1(x.pts) },
+    ] : [
+      { label: 'Value gap', value: k(x.gap), cls: 'up' }, { label: 'Split today', value: `${Math.round(x.share * 100)}% / ${100 - Math.round(x.share * 100)}%` },
+      { label: 'Pts gap', value: pts1(x.ptsGap) }, { label: 'Generations', value: x.g }, { label: 'Later deals', value: x.later },
+    ];
+    const header = `<div class="thero small"><div class="ico"><span class="rankbig">#${i + 1}</span></div><div><div class="eyebrow">${esc(L.name || '')} · traded ${esc(dateY(nt.created))}</div><h1 class="h1logos">${nt.rids.map((r) => `${tmini(nt, r)}${esc(treeNm(nt, r))}`).join('<i>⇄</i>')}</h1><p>${esc(treeLead(nt))}</p></div><div class="prstats">${tiles.map((t) => `<div><span>${esc(t.label)}</span><b class="${t.cls || ''}">${t.value}</b></div>`).join('')}</div><div class="glow"></div></div>`;
+    const deal = `<div class="tdeal"><div class="hd"><b>The original trade</b><span class="faint small">values at the trade → today</span></div>${treeDealSummary(nt)}</div>`;
+    // Pick the tree layout that shows it largest; let wide trees widen the image (1600–2600px) rather than shrink.
+    const opts = [{ stack: true }, { stack: false }, { orient: 'right' }].map((o) => {
+      const html = treeDiagram(nt, { ...o, print: true, withText: true });
+      const m = measure(html, 4000);
+      const width = Math.max(1600, Math.min(2600, m.w + 2 * IMG_PAD + 40));
+      return { html, width, z: Math.min(1, (width - 2 * IMG_PAD - 40) / m.w) };
+    }).sort((a, b) => b.z - a.z || a.width - b.width);
+    const best = opts[0];
+    const sec = document.createElement('section');
+    sec.className = 'img-page img-trade';
+    sec.dataset.name = `${pad(i + 1)}-trade${pad(i + 1)}`;
+    sec.style.width = `${best.width}px`;
+    sec.innerHTML = `${header}${deal}
+      <h2 class="img-h">The tree</h2><div class="tcanvas ftwrap pr-tree img-tree"><div class="prz"${best.z < 1 ? ` style="zoom:${best.z.toFixed(3)}"` : ''}>${best.html}</div></div>
+      <h2 class="img-h">Full accounting</h2>${attributionTables(nt)}
+      <p class="img-foot">${foot}</p>`;
+    host.appendChild(sec);
+  });
 }
 
 // ---- picks & market -----------------------------------------------------------------------
@@ -3394,6 +3759,7 @@ const actions = {
   },
   treeZoom(el) { const z = S.ui.tree.zoom === 'fit' ? (S.ui.tree.fitted || 1) : S.ui.tree.zoom; S.ui.tree.zoom = el.dataset.z === 'in' ? Math.min(1.6, z + 0.1) : el.dataset.z === 'out' ? Math.max(0.2, z - 0.1) : 'fit'; render(); },
   treePdf(el) { printTreeReport(el.dataset.kind || 'lopsided'); },
+  treeJpg(el) { exportReportJpgs(el.dataset.kind || 'lopsided'); },
   treeView(el, e) { S.ui.tree.view = el.dataset.v; if (el.tagName !== 'A') render(); },
   treeFull() { const c = document.querySelector('.tcanvas'); if (c && c.requestFullscreen) c.requestFullscreen(); },
   treeOrient(el) { const f = S.ui.tree; f.orient = el.dataset.v; f.autoOrient = null; f.tried = null; f.settled = false; f.stacked = false; f.zoom = 'fit'; render(); },
@@ -3414,6 +3780,8 @@ const actions = {
   closeSearch() { S.ui.q = ''; S.ui.results = []; },
   player(el) { S.ui.drawer = el.dataset.sid; S.ui.results = []; S.ui.q = ''; renderTop(); renderDrawer(); },
   closeDrawer() { S.ui.drawer = null; renderDrawer(); },
+  lopSort(el) { const key = el.dataset.key; const st = S.ui.lop; if (el.dataset.dir) { st.key = key; st.dir = Number(el.dataset.dir); } else if (st.key === key) st.dir = -st.dir; else { st.key = key; st.dir = -1; } render(); },
+  brSort(el) { const key = el.dataset.key; const st = S.ui.brs; if (st.key === key) st.dir = -st.dir; else { st.key = key; st.dir = -1; } render(); },
   sumSort(el) { const key = el.dataset.key; const st = S.ui.sum; if (st.key === key) st.dir = -st.dir; else { st.key = key; st.dir = key === 'name' ? 1 : -1; } render(); },
   boardEdit() { S.ui.boardEdit = !S.ui.boardEdit; render(); },
   async boardSave() {
@@ -3579,7 +3947,6 @@ const actions = {
     await runSync();
   },
   async lockGate() { await lock(); },
-  lopsidedBy(el) { S.ui.lopsidedBy = el.dataset.by; render(); },
   exportSummary(el) { return exportPoster(el, tradeSummaryPoster); },
   exportSeason(el) { return exportPoster(el, seasonPoster); },
   async saveSettings() {
