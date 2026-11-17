@@ -8,7 +8,7 @@ import { scoreLine, starterSlots, bestLineup } from '../lib/startsit.js';
 import { DEFAULT_PLAN } from '../lib/engine.js';
 import { fcTrades } from '../lib/fctrades.js';
 import { repairBoard } from '../lib/draft.js';
-import { normName } from '../lib/util.js';
+import { normName, ownsTeam } from '../lib/util.js';
 import { quickRefresh } from '../lib/alerts.js';
 import { gqlTrades, gqlLeaguePlayers } from '../lib/sleeper.js';
 import { fetchLeague, compareLeagues } from '../lib/compare.js';
@@ -269,7 +269,7 @@ function renderSide() {
   const tradeSub = S.ui.open.trades || r.page === 'trades' || r.page === 'summary' ? `<div class="sub"><a href="#summary" class="${r.page === 'summary' ? 'on' : ''}">Trade summary</a>${[['ledger', 'League trades'], ['offers', 'My offers'], ['incoming', 'Offers to you'], ['lab', 'Trade lab'], ['finder', 'Trade finder'], ['week', 'This week']].map(([id, l]) => `<a href="#trades/${id}" class="${r.page === 'trades' && (r.id || 'ledger') === id ? 'on' : ''}">${esc(l)}${id === 'offers' && pend ? ` <span class="pill sell" style="padding:0 6px">${pend}</span>` : ''}</a>`).join('')}</div>` : '';
   $('#side').innerHTML = `
     <a class="logo" href="#overview"><img src="../splash/crest-sm.png" alt=""><span>Casey's<b>Dynasty</b></span></a>
-    <div class="switcher">${me ? teamAvatar(me) : '<span class="av">WV</span>'}<div><b>${esc(L ? L.name : 'No league yet')}</b><span>${esc(me ? `${me.teamName || me.name}` : 'Sync to start')}</span></div></div>
+    <div class="switcher">${me ? teamAvatar(me) : '<span class="av">CD</span>'}<div><b>${esc(L ? L.name : 'No league yet')}</b><span>${esc(me ? `${me.teamName || me.name}` : 'Sync to start')}</span></div></div>
     <div class="nav-h">Main</div>
     <nav class="nav">
       ${item('#season', 'trophy', 'Season table', r.page === 'season')}
@@ -349,7 +349,7 @@ function render() {
       ${why ? `<div class="notice">${esc(why)}</div>` : ''}
       <p class="muted">${S.syncing ? 'Reading rosters, trades, values, rankings and stats. The first sync takes a minute or two.' : (loginId() ? 'Your Sleeper login is picked up. Sync to build your team\'s file.' : 'Log in at sleeper.com in this browser and your team loads by itself, or pick your league and team below.')}</p>
       ${S.syncing || !loginId() ? '' : `<div class="row"><button class="btn primary" data-action="sync">${icon('sync')}Sync now</button><a class="btn" href="#settings">Settings</a></div>`}
-    </div>${S.syncing ? '' : viewPicker({ welcome: true })}${r.page === 'settings' ? viewSettings() : ''}`;
+    </div>${S.syncing || r.page === 'settings' ? '' : viewPicker({ welcome: true })}${r.page === 'settings' ? viewSettings() : ''}`;
     return;
   }
   const notice = S.error ? `<div class="notice">Last sync failed: ${esc(S.error)}. Showing the previous data.</div>` : '';
@@ -2227,6 +2227,9 @@ function viewWaivers() {
   const u = uid();
   const lg = u && S.wleagues[u];
   const m = S.model;
+  // The plan and league record belong to your own team, so don't offer the
+  // viewed team's roster as drop spots.
+  if (viewingOther()) return `<div class="card"><h3>Overnight waiver claims</h3><p class="muted">You're viewing <b>${esc(tname(S.raw.me.rosterId))}</b>, which isn't your Sleeper login. Waiver claims only work for your own team.</p><a class="btn primary" href="#settings">Switch back to your team</a></div>`;
   if (!lg) return `<div class="card"><h3>Overnight waiver claims</h3><p class="muted">Sync once so the claimer knows your roster.</p><button class="btn primary" data-action="sync">Sync now</button></div>`;
   const p = plan();
   const run = p.run;
@@ -3202,7 +3205,7 @@ async function exportPoster(el, build) {
 // ---- your team picker -----------------------------------------------------------------------
 
 const loginId = () => (S.auth && S.auth.userId ? String(S.auth.userId) : '');
-const viewingOther = () => !!(S.raw && S.raw.me && loginId() && String(S.raw.me.userId) !== loginId());
+const viewingOther = () => !!(S.raw && S.raw.me && loginId()) && !ownsTeam(S.raw, S.auth);
 
 function viewPicker({ welcome = false } = {}) {
   const P2 = S.pick;
@@ -3598,12 +3601,14 @@ const actions = {
     render();
   },
   async claimNow() {
+    if (viewingOther()) return render();
     if (!confirm('Make real adds and drops in Sleeper right now, using your list?')) return;
     const r = await chrome.runtime.sendMessage({ type: 'arm', uid: uid(), now: true });
     S.ui.wv.msg = r && r.ok ? `Claiming now.${r.warnings && r.warnings.length ? ' ' + r.warnings.join(' ') : ''}` : `Couldn't start: ${r ? r.error : 'no reply'}`;
     await refreshPlans();
   },
   async arm() {
+    if (viewingOther()) return render();
     const r = await chrome.runtime.sendMessage({ type: 'arm', uid: uid() });
     S.ui.wv.msg = r && r.ok ? `Armed. Checking starts ${when(r.run.windowStart)}. Leave Chrome open and the computer awake.${r.warnings && r.warnings.length ? ' ' + r.warnings.join(' ') : ''}` : `Couldn't arm: ${r ? r.error : 'no reply'}`;
     await refreshPlans();
@@ -3616,6 +3621,8 @@ const actions = {
   async armToggle() {
     const p = plan();
     if (p.run) return actions.disarm();
+    // The Waivers page explains why claims are off for someone else's team.
+    if (viewingOther()) { location.hash = '#waivers'; render(); return; }
     if (!p.drops.length || !p.targets.length) {
       S.ui.wv.msg = 'Pick at least one drop spot and one target, then arm.';
       location.hash = '#waivers';
@@ -3741,12 +3748,24 @@ chrome.storage.onChanged.addListener((ch, area) => {
   if (ch.settings && ch.settings.newValue) {
     const a = ch.settings.newValue.sleeper || null;
     const changed = String((a && a.userId) || '') !== String((S.auth && S.auth.userId) || '');
+    const newToken = !changed && a && a.token && a.token !== (S.auth && S.auth.token);
     S.auth = a;
     if (changed) noticeLogin().then((sw) => {
-      const lacks = S.raw && S.raw.me && a && String(S.raw.me.userId) === String(a.userId) && !(S.raw.gql && S.raw.gql.ok);
-      if (sw || lacks) runSync(); else render();
+      if (sw || missingOffers()) runSync(); else render();
     });
+    // A fresh token for the same account: retry offers once if they failed.
+    else if (newToken && ownsTeam(S.raw, a) && !(S.raw.gql && S.raw.gql.ok) && !S.syncing) runSync();
   }
+  // Another account's notes and alerts swapped in by the background (see swapAccount).
+  // Saving your own note lands here too; only rebuild when the notes really differ.
+  const same = (a, b) => JSON.stringify(a || {}) === JSON.stringify(b || {});
+  const swapped = (ch.notes && !same(ch.notes.newValue, S.notes)) || (ch.briefDone && !same(ch.briefDone.newValue, S.briefDone));
+  if (ch.notes) S.notes = ch.notes.newValue || {};
+  if (ch.briefDone) S.briefDone = ch.briefDone.newValue || {};
+  if (ch.blockExtra) S.blockExtra = ch.blockExtra.newValue || [];
+  if (ch['draft:stars']) S.draftStars = ch['draft:stars'].newValue || {};
+  if (ch['draft:board']) S.draftBoard = ch['draft:board'].newValue || null;
+  if (swapped && !S.syncing && S.raw) rebuild().then(render);
   if (ch['alerts:feed']) S.feed = ch['alerts:feed'].newValue || [];
   if (ch.plans) S.plans = ch.plans.newValue || {};
   if (ch.log) S.log = ch.log.newValue || [];
@@ -3779,18 +3798,21 @@ async function noticeLogin() {
   return true;
 }
 
+// Data built before the login reached this browser (so offers were never
+// asked for): rebuild it with offers. A sync that asked and failed doesn't
+// count, or every page open would start another full sync.
+const missingOffers = () => ownsTeam(S.raw, S.auth) && !S.raw.me.own;
+
 (async function init() {
   await gate();
   await load();
   const switched = await noticeLogin();
-  const lid = S.auth && S.auth.userId ? String(S.auth.userId) : '';
-  // Data built before the login reached this browser: rebuild it with offers.
-  const missingOffers = !!(lid && S.raw && S.raw.me && String(S.raw.me.userId) === lid && !(S.raw.gql && S.raw.gql.ok));
+  const noOffers = missingOffers();
   S.prevSeen = S.cfg.lastSeen || 0;
   await rebuild();
   render();
   await sync.saveSettings({ lastSeen: Date.now() });
-  const stale = switched || missingOffers || !S.raw || !S.book || !S.prod || Date.now() - S.raw.at > 30 * 60e3;
+  const stale = switched || noOffers || !S.raw || !S.book || !S.prod || Date.now() - S.raw.at > 30 * 60e3;
   if (stale) runSync();
   else freshen();
 })();
@@ -3801,6 +3823,6 @@ async function freshen() {
   if (S.syncing || !S.raw || !S.raw.league) return;
   const last = Math.max(S.raw.at || 0, S.raw.quickAt || 0);
   if (Date.now() - last < 2 * 60e3) return;
-  try { await quickRefresh(S.raw); } catch (e) { console.warn('[WV] freshen', e); }
+  try { await quickRefresh(S.raw); } catch (e) { console.warn('[CDD] freshen', e); }
 }
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') freshen(); });

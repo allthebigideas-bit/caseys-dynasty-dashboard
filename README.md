@@ -173,6 +173,14 @@ The sidebar on the left has every page. The top bar has search (players and mana
   - **Who drafts well in this league,** and every past rookie draft with what each pick became.
   - **Prospect board:** FantasyPros dynasty rookie rankings when they cover next year's class. Otherwise, paste any ranking list. You can star your guys.
 
+## What changed in 2.26.2
+
+- **Waivers stay off for someone else's team.** While you're viewing another team, the Waivers page explains why claims are off instead of listing that team's players as drop spots, and the **Waivers armed** switch takes you there.
+- **Each Sleeper account keeps its own notes, alerts and waiver plans.** When someone else logs in to Sleeper in the same Chrome, your notes, tags, alert history and waiver lists are put away, and theirs (or a blank set) come out. Logging back in brings yours back.
+- **No more repeated full syncs when offers fail.** If Sleeper's offers lookup errors, the dashboard no longer starts a full sync every time it opens. It tries again on the usual 30-minute refresh, or straight away when you log in to sleeper.com again.
+- Waiver notifications now say "Casey's Dynasty Dashboard" instead of "Waiver Vulture", so they can't be mixed up with a personal Waiver Vulture install.
+- First automated tests (trade grades, aging curves, the "is this my team" check). Run them with `npm test`. They also run on GitHub for every push.
+
 ## What changed in 2.26.0
 
 - **Export PNG** on Trade summary and Season table: a shareable poster with the league art, crest, a gold title ribbon, award ribbons and a clear table.

@@ -1,0 +1,15 @@
+name: test
+on: [push, pull_request]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: for f in $(git ls-files '*.js'); do node --check "$f"; done
+      - run: npm test
+      # The extension was forked from Waiver Vulture; its name must not reach users.
+      - name: no Waiver Vulture branding
+        run: "! git grep -nE 'Waiver Vulture|(^|[^A-Za-z])WV([^A-Za-z]|$)' -- '*.js' '*.html'"
