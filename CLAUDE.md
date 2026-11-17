@@ -2,6 +2,7 @@ Chrome MV3 extension (no build step): a dynasty-league dashboard for one Sleeper
 
 - Terms (login, viewed team, own team): `GLOSSARY.md`. Offers, alerts, waiver claims and Refresh ask the own-team gate, `ownTeam()` in `lib/ownteam.js`.
 - `dossier/dossier.js` is ~3.8k lines with very long lines: grep for the view or action (`viewWaivers`, `actions.arm`) and read around it.
+- Sync (`createSync` in `lib/sync.js`) is given the Sleeper port (`lib/sleeper-port.js`) and storage (`lib/store.js`); tests pass the fixture adapter and `memoryStore()`. Fixtures: `test/fixtures/sleeper/README.md`.
 - Checks: `npm test`, plus what `.github/workflows/test.yml` runs.
 
 <important if="you are checking a change in a browser">

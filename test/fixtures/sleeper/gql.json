@@ -1,0 +1,77 @@
+{
+ "trades:1313340828264960001": [
+  {
+   "transaction_id": "1395590360465408000",
+   "status": "complete",
+   "type": "trade",
+   "creator": "695752319077273600",
+   "roster_ids": [
+    1,
+    7
+   ],
+   "consenter_ids": [
+    1,
+    7
+   ],
+   "created": 1787097180052,
+   "status_updated": 1787098771885,
+   "leg": 1,
+   "adds": null,
+   "drops": null,
+   "draft_picks": [
+    "1,2026,2,7,1",
+    "2,2026,2,7,1",
+    "7,2026,1,1,7",
+    "7,2026,3,1,7"
+   ],
+   "waiver_budget": []
+  },
+  {
+   "transaction_id": "1402896577072234496",
+   "status": "complete",
+   "type": "trade",
+   "creator": "1263661270117134336",
+   "roster_ids": [
+    2,
+    6
+   ],
+   "consenter_ids": [
+    2,
+    6
+   ],
+   "created": 1788839117833,
+   "status_updated": 1788845362333,
+   "leg": 1,
+   "adds": {
+    "2449": 2,
+    "12492": 6
+   },
+   "drops": {
+    "2449": 6,
+    "12492": 2
+   },
+   "draft_picks": [],
+   "waiver_budget": []
+  }
+ ],
+ "leaguePlayers:1313340828264960001": [
+  {
+   "player_id": "10235",
+   "settings": {
+    "otb": 1,
+    "otb_added_at": 1789000000000
+   }
+  },
+  {
+   "player_id": "11603",
+   "settings": {
+    "otb": 8,
+    "otb_added_at": 1789100000000
+   }
+  },
+  {
+   "player_id": "11370",
+   "settings": {}
+  }
+ ]
+}

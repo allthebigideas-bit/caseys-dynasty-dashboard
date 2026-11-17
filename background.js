@@ -154,7 +154,7 @@ const handlers = {
     const lg = leagues[uid];
     if (!lg) throw new Error('Unknown league');
     const dict = await sleeper.playersDict();
-    const rosters = await sleeper.rosters(lg.leagueId);
+    const rosters = await sleeper.leagueRosters(lg.leagueId);
     const out = [];
     for (const r of rosters) for (const id of r.players || []) {
       const d = dict[id];

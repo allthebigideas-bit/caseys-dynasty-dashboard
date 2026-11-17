@@ -173,6 +173,11 @@ The sidebar on the left has every page. The top bar has search (players and mana
   - **Who drafts well in this league,** and every past rookie draft with what each pick became.
   - **Prospect board:** FantasyPros dynasty rookie rankings when they cover next year's class. Otherwise, paste any ranking list. You can star your guys.
 
+## What changed in 2.28.2
+
+- **Sleeper requests that hang give up after 25 seconds,** so a sync or Refresh can't sit stuck forever.
+- Sync now runs under `npm test` on responses recorded from the test league. `node scripts/record-fixtures.js` re-records them, with no login.
+
 ## What changed in 2.28.1
 
 - **Refresh no longer mixes your offers into someone else's team.** While viewing another team, Refresh updates rosters, picks and the trade block, and leaves offers alone.
