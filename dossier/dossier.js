@@ -9,7 +9,7 @@ import { scoreLine, starterSlots, bestLineup } from '../lib/startsit.js';
 import { DEFAULT_PLAN } from '../lib/engine.js';
 import { fcTrades } from '../lib/fctrades.js';
 import { repairBoard } from '../lib/draft.js';
-import { normName, store } from '../lib/util.js';
+import { normName, store, nextWindowStart, sleeperWaiverDay } from '../lib/util.js';
 import { ownTeam } from '../lib/ownteam.js';
 import { quickRefresh } from '../lib/alerts.js';
 import { gqlTrades, gqlLeaguePlayers } from '../lib/sleeper.js';
@@ -260,6 +260,35 @@ function route() {
 }
 const PAGE_NAMES = { season: 'Season table', form: 'Roster form', block: 'My trade block', draft: 'Rookie draft', overview: 'Overview', summary: 'Trade summary', managers: 'Managers', manager: 'Managers', trades: 'Trades', demand: 'Demand', rising: 'Rising players', positions: 'Positional ranks', startsit: 'Start/Sit', waivers: 'Waivers', picks: 'Picks', compare: 'League compare', tree: 'Trade trees', lopsided: 'Most lopsided trades', branches: 'Most branching trades', market: 'Market', settings: 'Settings' };
 
+
+// Sidebar league switcher: every league the login is in this season. Picking one
+// loads the login's own team there; "Another league or team…" opens the picker.
+function switcher(L, me) {
+  const cur = L ? String(L.league_id) : String(S.cfg.leagueId || '');
+  const list = S.myLeagues || [];
+  const teamLine = esc(me ? `${me.teamName || me.name}${viewingAs() ? ' (viewing as)' : ''}` : 'Sync to start');
+  if (!list.length) {
+    return `<div class="switcher">${me ? teamAvatar(me) : '<span class="av">CD</span>'}<div><b>${esc(L ? L.name : 'No league yet')}</b><span>${teamLine}</span></div></div>`;
+  }
+  const opts = [...list];
+  if (cur && !opts.some((l) => l.id === cur) && L) opts.unshift({ id: cur, name: L.name });
+  return `<div class="switcher sel"><div class="sw-body">
+    <label class="sr-only" for="sw-league">League</label>
+    <select id="sw-league" data-switch="league" title="Switch league">${opts.map((l) => `<option value="${esc(l.id)}" ${l.id === cur ? 'selected' : ''}>${esc(l.name)}</option>`).join('')}
+      <option value="__pick">Another league or team…</option></select>
+    <span>${teamLine}</span></div></div>`;
+}
+
+async function loadMyLeagues() {
+  const id = S.auth && S.auth.userId ? String(S.auth.userId) : '';
+  if (!id) { S.myLeagues = null; return; }
+  if (S.myLeaguesFor === id && S.myLeagues) return;
+  try {
+    const r = await sync.findLeagues('');
+    S.myLeagues = r.leagues; S.myLeaguesFor = id;
+  } catch { S.myLeagues = null; }
+}
+
 function renderSide() {
   const r = route();
   const m = S.model;
@@ -272,8 +301,8 @@ function renderSide() {
   const mgrSub = m && (S.ui.open.managers || r.page === 'manager') ? `<div class="sub">${[...m.teams].sort((a, b) => b.posture.score - a.posture.score).map((t) => `<a href="#manager/${t.rid}" class="${r.page === 'manager' && Number(r.id) === t.rid ? 'on' : ''}"><span class="dot" style="background:${t.posture.tone === 'buy' ? 'var(--violet)' : t.posture.tone === 'sell' ? 'var(--red)' : 'var(--faint)'}"></span>${esc(t.name)}${t.avoid ? ' ' + icon('note') : ''}</a>`).join('')}</div>` : '';
   const tradeSub = S.ui.open.trades || r.page === 'trades' || r.page === 'summary' ? `<div class="sub"><a href="#summary" class="${r.page === 'summary' ? 'on' : ''}">Trade summary</a>${[['ledger', 'League trades'], ['offers', 'My offers'], ['incoming', 'Offers to you'], ['lab', 'Trade lab'], ['finder', 'Trade finder'], ['week', 'This week']].map(([id, l]) => `<a href="#trades/${id}" class="${r.page === 'trades' && (r.id || 'ledger') === id ? 'on' : ''}">${esc(l)}${id === 'offers' && pend ? ` <span class="pill sell" style="padding:0 6px">${pend}</span>` : ''}</a>`).join('')}</div>` : '';
   $('#side').innerHTML = `
-    <a class="logo" href="#overview"><img src="../splash/crest-sm.png" alt=""><span>Casey's<b>Dynasty</b></span></a>
-    <div class="switcher">${me ? teamAvatar(me) : '<span class="av">CD</span>'}<div><b>${esc(L ? L.name : 'No league yet')}</b><span>${esc(me ? `${me.teamName || me.name}` : 'Sync to start')}</span></div></div>
+    <a class="logo big" href="#overview" title="Casey's Dynasty Dashboard"><img src="../splash/crest.png" alt="Casey's Dynasty League"></a>
+    ${switcher(L, me)}
     <div class="nav-h">Main</div>
     <nav class="nav">
       ${item('#season', 'trophy', 'Season table', r.page === 'season')}
@@ -302,7 +331,7 @@ function renderSide() {
     <div class="side-card">
       <ul>
         <li class="${S.auth && S.auth.token ? '' : 'off'}">${icon(S.auth && S.auth.token ? 'check' : 'x')}Offer alerts every 5 min</li>
-        <li class="${armed ? '' : 'off'}">${icon(armed ? 'check' : 'x')}${armed ? 'Waivers armed tonight' : 'Waivers not armed'}</li>
+        <li class="${armed ? '' : 'off'}">${icon(armed ? 'check' : 'x')}${armed ? `Waivers armed${(Object.values(S.plans || {}).find((x) => x && x.run) || {}).run ? ` · ${esc(when(Object.values(S.plans).find((x) => x && x.run).run.windowStart))}` : ''}` : 'Waivers not armed'}</li>
         <li>${icon('check')}${S.raw ? `Synced ${esc(when(S.raw.at))}` : 'Not synced yet'}</li>
         ${S.raw && S.raw.quickAt && S.raw.quickAt > S.raw.at ? `<li>${icon('check')}Rosters & picks ${esc(when(S.raw.quickAt))}</li>` : ''}
       </ul>
@@ -2266,11 +2295,13 @@ function viewWaivers() {
       <td><button class="btn sm" data-action="addTarget" data-sid="${esc(x.id)}" ${tset.has(x.id) || locked ? 'disabled' : ''}>${tset.has(x.id) ? 'Added' : '+ Target'}</button></td></tr>`).join('');
   const phase = run ? { waiting: 'Armed — waiting', watching: 'Watching for waivers', claiming: 'Claiming', done: 'Done' }[run.phase] || run.phase : 'Not armed';
   const logs = S.log.filter((l) => l.league === lg.name || l.league === 'Sleeper').slice(-60).reverse();
+  const wDay = sleeperWaiverDay(s);
+  const nextStart = nextWindowStart((plan() || {}).startCheck, (plan() || {}).giveUpHours || 4, Date.now(), wDay);
   const sortSel = `<select data-wv="sort">${[['value', 'Dynasty value'], ['week', 'This week projection'], ['season', 'Season pts/game'], ['fp', 'FantasyPros rank'], ['trend', 'Trending adds'], ['rising', 'Rising (3-yr projection)']].map(([v, l]) => `<option value="${v}" ${wv.sort === v ? 'selected' : ''}>${l}</option>`).join('')}</select>`;
   const posSel = `<select data-wv="pos">${['ALL', 'QB', 'RB', 'WR', 'TE', 'DEF', 'K'].map((v) => `<option ${wv.pos === v ? 'selected' : ''}>${v}</option>`).join('')}</select>`;
   return `
-    <div class="card banner"><div class="art">${icon('moon')}</div><div><b>Overnight waiver claims</b><p>When waivers clear in ${esc(lg.name)} (${esc(lg.waiverType || 'waivers')}${s.waiver_day_of_week != null ? `, processing ${['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][s.waiver_day_of_week]}` : ''}), the vulture adds your top available targets into your drop spots. Leave Chrome open and the computer awake.</p></div>
-      <div class="row" style="margin-left:auto"><span class="pill ${run ? 'buy' : 'mid'}">${esc(phase)}</span>${locked ? `<button class="btn danger" data-action="disarm">Disarm</button>` : `<button class="btn primary" data-action="arm">Arm for tonight</button>`}</div></div>
+    <div class="card banner"><div class="art">${icon('moon')}</div><div><b>Overnight waiver claims</b><p>When waivers clear in ${esc(lg.name)} (${esc(lg.waiverType || 'waivers')}, ${wDay == null ? 'daily' : `early ${['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][wDay]} morning`}), the vulture adds your top available targets into your drop spots. Leave Chrome open and the computer awake.${run ? '' : ` <b>Next run if armed now: ${esc(when(nextStart))}.</b>`}</p></div>
+      <div class="row" style="margin-left:auto"><span class="pill ${run ? 'buy' : 'mid'}">${esc(phase)}</span>${locked ? `<button class="btn danger" data-action="disarm">Disarm</button>` : `<button class="btn primary" data-action="arm">Arm for next waivers</button>`}</div></div>
     ${wv.msg ? `<div class="notice info" style="margin-top:14px">${esc(wv.msg)}</div>` : ''}
     ${run ? `<div class="card" style="margin-top:16px"><h3>Status</h3><p>${esc(run.lastMsg || '')}</p><p class="muted small">${run.windowStart ? `${run.windowStart > Date.now() ? 'Checking starts' : 'Window opened'} ${esc(when(run.windowStart))}` : ''}${run.lastTick ? ` · last check ${esc(when(run.lastTick))}` : ''}</p>${runReasons(run, p)}${(run.claimed || []).map((c) => `<div class="asset">${headshot(c.id)}<div class="nm"><b>Added ${esc(c.name)}</b><span class="meta">${c.dropName ? `dropped ${esc(c.dropName)} · ` : ''}${esc(when(c.at))}</span></div></div>`).join('')}</div>` : p.lastRun ? `<div class="card" style="margin-top:16px"><h3>Last run</h3><p class="muted">${esc(p.lastRun.lastMsg || '')} ${esc(when(p.lastRun.finishedAt))}</p>${(p.lastRun.claimed || []).map((c) => `<div class="asset">${headshot(c.id)}<div class="nm"><b>Added ${esc(c.name)}</b><span class="meta">${c.dropName ? `dropped ${esc(c.dropName)}` : ''}</span></div></div>`).join('')}</div>` : ''}
     <div class="two" style="margin-top:16px;align-items:start">
@@ -2413,6 +2444,8 @@ function cmpSources() {
   const src = [];
   const mine = ((S.raw && S.raw.leagues) || []).filter((l) => String(l.id) !== String(m.league.id));
   if (mine.length) src.push({ uid: 'me', name: 'You', leagues: mine.map((l) => ({ id: l.id, name: l.name })) });
+  const added = (S.cfg.cmpExtra || []).filter((l) => String(l.id) !== String(m.league.id));
+  if (added.length) src.push({ uid: 'added', name: 'Leagues you added', leagues: added });
   for (const t of m.teams) {
     if (t.isMe) continue;
     const o = others[t.userId];
@@ -2425,7 +2458,13 @@ function viewCompare() {
   const m = S.model;
   const f = S.ui.cmp;
   const src = cmpSources();
-  if (!src.length) return '<div class="card"><h3>League compare</h3><p class="muted">No other leagues found yet. League-mates\' other leagues load during a sync (refreshed once a day).</p></div>';
+  const addBox = `<div class="row cmp-add" style="gap:8px;margin-top:10px;align-items:end">
+    <label class="f" style="flex:1;max-width:340px">Add a league by its Sleeper league ID<input type="text" id="cmp-add" inputmode="numeric" placeholder="e.g. 1263631358337503232" value="${esc(f.addId || '')}"></label>
+    <button class="btn sm primary" data-action="cmpAdd">${f.adding ? 'Adding…' : 'Add league'}</button>
+    ${f.uid === 'added' && f.lid ? '<button class="btn sm" data-action="cmpRemove">Remove this league</button>' : ''}</div>
+    ${f.addErr ? `<p class="down small" style="margin:6px 0 0">${esc(f.addErr)}</p>` : ''}
+    <p class="faint small" style="margin:6px 0 0">The ID is the long number in the league's address: sleeper.com/leagues/<b>ID</b>/…</p>`;
+  if (!src.length) return `<div class="card"><h3>League compare</h3><p class="muted">No other leagues found yet. League-mates' other leagues load during a sync (refreshed once a day), or add any league yourself.</p>${addBox}</div>`;
   if (!f.uid || !src.find((x) => x.uid === f.uid)) f.uid = (src.find((x) => x.uid !== 'me') || src[0]).uid;
   const who = src.find((x) => x.uid === f.uid);
   if (!f.lid || !who.leagues.find((l) => String(l.id) === String(f.lid))) f.lid = who.leagues[0].id;
@@ -2434,6 +2473,7 @@ function viewCompare() {
     <div class="row">${sel('uid', src.map((x) => [x.uid, `${x.name} (${x.leagues.length} other league${x.leagues.length === 1 ? '' : 's'})`]))}
     ${sel('lid', who.leagues.map((l) => [l.id, `${l.name.trim()}${l.size ? ` · ${l.size} teams` : ''}${l.sf ? ' · SF' : ''}${l.tep ? ' · TE+' : ''}`]))}
     <button class="btn sm" data-action="cmpReload" title="Fetch this league again">${icon('sync')}</button></div></div>
+    ${addBox}
     <p class="lede" style="margin:8px 0 0">Pulls the other league's settings and rosters live from Sleeper. Player values are from your league's value settings, so they're a guide to who matters, not the other league's market.</p></div>`;
 
   const c = CMP[f.lid];
@@ -3783,6 +3823,34 @@ const actions = {
   dealTab(el) { S.ui.dealTab[el.dataset.rid] = el.dataset.tab; render(); },
   cmpPos(el) { S.ui.cmp.pos = el.dataset.pos; render(); },
   cmpReload() { const id = S.ui.cmp.lid; if (id) delete CMP[id]; render(); },
+  async cmpAdd() {
+    const f = S.ui.cmp;
+    const raw = (($('#cmp-add') || {}).value || '').trim();
+    const id = (raw.match(/\d{10,}/) || [])[0];
+    f.addId = raw; f.addErr = '';
+    if (!id) { f.addErr = 'Paste a Sleeper league ID (the long number), or the league\'s address.'; return render(); }
+    if (S.raw && String(S.raw.league.league_id) === id) { f.addErr = "That's this league."; return render(); }
+    f.adding = true; render();
+    try {
+      const d = await fetchLeague(id);
+      if (!d.league || !d.league.league_id) throw new Error('Sleeper has no league with that ID.');
+      CMP[id] = { data: d };
+      const row = { id, name: (d.league.name || 'League').trim(), size: d.league.total_rosters };
+      const list = (S.cfg.cmpExtra || []).filter((l) => String(l.id) !== id);
+      S.cfg = await sync.saveSettings({ cmpExtra: [...list, row] });
+      f.uid = 'added'; f.lid = id; f.addId = '';
+    } catch (e) {
+      f.addErr = `Couldn't add it: ${e.message}`;
+    }
+    f.adding = false;
+    render();
+  },
+  async cmpRemove() {
+    const f = S.ui.cmp;
+    S.cfg = await sync.saveSettings({ cmpExtra: (S.cfg.cmpExtra || []).filter((l) => String(l.id) !== String(f.lid)) });
+    f.uid = null; f.lid = null;
+    render();
+  },
   posSort(el) { S.ui.posr.sort = el.dataset.k; render(); },
   posFocus(el) { S.ui.posr.focus = el.dataset.pos; render(); },
   sync: () => runSync(),
@@ -4044,6 +4112,7 @@ async function refreshPlans() {
 
 document.addEventListener('keydown', (e) => {
   if (e.key === 'Enter' && e.target.id === 'pick-q') { e.preventDefault(); actions.pickFind(); }
+  if (e.key === 'Enter' && e.target.id === 'cmp-add') { e.preventDefault(); actions.cmpAdd(); }
 });
 document.addEventListener('click', (e) => {
   const el = e.target.closest('[data-action]');
@@ -4060,6 +4129,7 @@ document.addEventListener('click', (e) => {
 
 document.addEventListener('input', (e) => {
   if (e.target.id === 'pick-q') { S.pick.q = e.target.value; return; }
+  if (e.target.id === 'cmp-add') { S.ui.cmp.addId = e.target.value; return; }
   if (e.target.id === 'q') runSearch(e.target.value);
   if (e.target.dataset && e.target.dataset.labfilter) {
     const q = normName(e.target.value);
@@ -4074,6 +4144,14 @@ document.addEventListener('keydown', (e) => {
 
 document.addEventListener('change', async (e) => {
   const el = e.target;
+  if (el.dataset.switch === 'league') {
+    if (el.value === '__pick') { location.hash = '#settings'; render(); return; }
+    S.cfg = await sync.saveSettings({ leagueId: el.value, teamUserId: '' });
+    S.raw = null; S.model = null;
+    location.hash = '#overview';
+    await runSync();
+    return;
+  }
   if (el.dataset.pick === 'league') {
     try { await pickLeague(el.value); } catch (err) { S.pick.error = err.message; }
     render();
@@ -4152,6 +4230,7 @@ chrome.storage.onChanged.addListener((ch, area) => {
     const changed = String((a && a.userId) || '') !== String((S.auth && S.auth.userId) || '');
     const newToken = !changed && a && a.token && a.token !== (S.auth && S.auth.token);
     S.auth = a;
+    if (changed) { S.myLeagues = null; loadMyLeagues().then(() => renderSide()); }
     if (changed) noticeLogin().then((sw) => {
       if (sw || missingOffers()) runSync(); else render();
     });
@@ -4209,6 +4288,7 @@ const missingOffers = () => teamState() === 'own' && !!(S.raw.gql && S.raw.gql.s
   await gate();
   await load();
   const switched = await noticeLogin();
+  loadMyLeagues().then(() => { if (S.myLeagues && S.myLeagues.length) renderSide(); });
   const noOffers = missingOffers();
   S.prevSeen = S.cfg.lastSeen || 0;
   await rebuild();
