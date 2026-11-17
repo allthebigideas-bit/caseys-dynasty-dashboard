@@ -1,6 +1,6 @@
 Chrome MV3 extension (no build step): a dynasty-league dashboard for one Sleeper team.
 
-- Terms (login, viewed team, own team): `GLOSSARY.md`. Offers, alerts and waiver claims go through `ownsTeam()` in `lib/util.js`.
+- Terms (login, viewed team, own team): `GLOSSARY.md`. Offers, alerts, waiver claims and Refresh ask the own-team gate, `ownTeam()` in `lib/ownteam.js`.
 - `dossier/dossier.js` is ~3.8k lines with very long lines: grep for the view or action (`viewWaivers`, `actions.arm`) and read around it.
 - Checks: `npm test`, plus what `.github/workflows/test.yml` runs.
 

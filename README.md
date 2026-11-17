@@ -27,7 +27,7 @@ It covers:
 
 ## Whose team it shows
 
-- **Logged in to Sleeper in this Chrome:** your own team, automatically. Everything works, including offers, alerts and waiver claims.
+- **Logged in to Sleeper in this Chrome:** your own team, automatically. Everything works, including offers, alerts and waiver claims. A team you co-own counts as your own team too.
 - **Not logged in:** go to **Settings → Your team**, type your Sleeper username or the league ID, and choose your league and team. Everything works except offers, alerts and waiver claims, which need the login.
 - **Looking at someone else's team:** pick any team under **Settings → Your team**. A "Viewing as" tag shows at the top, and offers, alerts and waiver claims stay off, since they act with your login. **Back to my own team** returns you.
 - **Someone else logs in to Sleeper in this Chrome:** the dashboard switches to their team, and any waiver claims armed for the previous account are stopped.
@@ -172,6 +172,13 @@ The sidebar on the left has every page. The top bar has search (players and mana
   - **Hit rates by slot and position:** worked out from DynastyProcess's history of rookie values.
   - **Who drafts well in this league,** and every past rookie draft with what each pick became.
   - **Prospect board:** FantasyPros dynasty rookie rankings when they cover next year's class. Otherwise, paste any ranking list. You can star your guys.
+
+## What changed in 2.28.1
+
+- **Refresh no longer mixes your offers into someone else's team.** While viewing another team, Refresh updates rosters, picks and the trade block, and leaves offers alone.
+- **Co-owners get offers, alerts and waiver claims** for the team they co-own, however the team was picked.
+- **Logged out:** the offers, alerts and waiver screens say to log in to sleeper.com in this Chrome, and arming, claiming and dry runs do nothing.
+- One own-team check (`lib/ownteam.js`) decides all of this, with tests.
 
 ## What changed in 2.26.2
 
