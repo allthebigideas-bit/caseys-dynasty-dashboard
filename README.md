@@ -173,6 +173,13 @@ The sidebar on the left has every page. The top bar has search (players and mana
   - **Who drafts well in this league,** and every past rookie draft with what each pick became.
   - **Prospect board:** FantasyPros dynasty rookie rankings when they cover next year's class. Otherwise, paste any ranking list. You can star your guys.
 
+## What changed in 2.29.0
+
+- **Waiver runs start on the right night.** The start time only looked at the clock, never the day, so a weekly-waiver league armed on any day but Tuesday ran a day or more early, found nothing processed, fell back to adding players still on waivers, and gave up. Runs now start on the league's waiver morning (Sleeper's `waiver_day_of_week`, counted from Monday: the default 2 is early Wednesday). Daily-waiver leagues still run the next night. The Waivers page shows the day and when the next run would start; the button reads "Arm for next waivers" and the sidebar shows when an armed run starts.
+- **Bigger league crest** at the top of the sidebar.
+- **League switcher** under the crest: every league the login is in this season. Picking one loads your team there; "Another league or team…" opens the team picker.
+- **League compare: add any league by ID** (or paste its address). Added leagues are kept under "Leagues you added" and can be removed.
+
 ## What changed in 2.28.2
 
 - **Sleeper requests that hang give up after 25 seconds,** so a sync or Refresh can't sit stuck forever.
