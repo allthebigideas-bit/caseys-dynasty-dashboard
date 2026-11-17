@@ -1086,3 +1086,8 @@ html { scroll-behavior: smooth; }
   .mgr:hover, .tile:hover, .pcard:hover { transform: none; }
   html { scroll-behavior: auto; }
 }
+
+/* Two-way switch (Most lopsided: By value / By points). */
+.tseg { display: inline-flex; gap: 4px; padding: 3px; border-radius: 12px; border: 1px solid rgb(var(--accent2-rgb) / .25); }
+.tseg .tbtn { border-color: transparent; background: transparent; }
+.tseg .tbtn.on { background: linear-gradient(180deg, var(--gold-2), var(--gold)); color: var(--gold-ink); font-weight: 700; }

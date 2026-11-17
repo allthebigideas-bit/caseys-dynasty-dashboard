@@ -181,6 +181,10 @@ The sidebar on the left has every page. The top bar has search (players and mana
 - Waiver notifications now say "Casey's Dynasty Dashboard" instead of "Waiver Vulture", so they can't be mixed up with a personal Waiver Vulture install.
 - First automated tests (trade grades, aging curves, the "is this my team" check). Run them with `npm test`. They also run on GitHub for every push.
 
+## What changed in 2.27.0
+
+- **Most lopsided trades: By value / By points.** By points ranks trades by how many more starter points one side's new players have scored than the other's since the deal (counting only games started for the team that got them). The PDF report follows whichever you pick.
+
 ## What changed in 2.26.3
 
 - Phones: Settings and League trades no longer spill sideways at narrow widths, and items you tab or jump to no longer hide under the sticky top bar.
