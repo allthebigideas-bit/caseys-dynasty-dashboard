@@ -1821,15 +1821,16 @@ function outWithOldCard() {
   </div>`;
 }
 
-// Every pick you own, every season Sleeper knows about, plus what you've traded away.
-function capitalCard() {
+// Every pick ${rid === m.me ? 'you own' : 'they own'}, every season Sleeper knows about, plus what you've traded away.
+function capitalCard(rid0) {
   const m = S.model;
-  const me = team(m.me);
+  const rid = rid0 ?? m.me;
+  const me = team(rid);
   const slotTxt = (p) => (p.slot ? `${p.round}.${String(p.slot).padStart(2, '0')}` : roundName(p.round));
-  const owned = m.picks.filter((p) => p.owner === m.me).sort((a, b) => a.season - b.season || a.round - b.round || (a.slot || 99) - (b.slot || 99));
-  const gone = m.picks.filter((p) => p.orig === m.me && p.owner !== m.me).sort((a, b) => a.season - b.season || a.round - b.round);
+  const owned = m.picks.filter((p) => p.owner === rid).sort((a, b) => a.season - b.season || a.round - b.round || (a.slot || 99) - (b.slot || 99));
+  const gone = m.picks.filter((p) => p.orig === rid && p.owner !== rid).sort((a, b) => a.season - b.season || a.round - b.round);
   const ranked = [...m.teams].sort((a, b) => b.pickValue - a.pickValue);
-  const rank = ranked.findIndex((t) => t.rid === m.me) + 1;
+  const rank = ranked.findIndex((t) => t.rid === rid) + 1;
   const bySeason = m.pickSeasons.map((y) => {
     const ps = owned.filter((p) => p.season === y);
     const counts = {};
@@ -1837,10 +1838,10 @@ function capitalCard() {
     const summary = Object.keys(counts).sort((a, b) => a - b).map((r) => `${counts[r]}× ${roundName(Number(r))}`).join(' · ') || 'none';
     const lk = (m.lockedSeasons || []).includes(y);
     return `<div class="sec-h" style="margin-top:10px"><b>${y}${lk ? ' <span class="pill mid" title="Not tradeable in Sleeper yet. Unlock on the Picks page.">locked</span>' : ''}</b><span class="muted small">${ps.length} pick${ps.length === 1 ? '' : 's'}: ${summary} · ${k(sum2(ps.map((p) => p.v)))}</span></div>
-      ${ps.map((p) => `<div class="asset"><span class="av head">PK</span><div class="nm"><b>${y} ${slotTxt(p)}</b><span class="meta">${p.orig === m.me ? 'own' : `via ${esc(tname(p.orig))}`}${p.slot ? ` · ${esc(p.tier)}` : ''}</span></div><div class="vals">${k(p.v)}</div></div>`).join('')}`;
+      ${ps.map((p) => `<div class="asset"><span class="av head">PK</span><div class="nm"><b>${y} ${slotTxt(p)}</b><span class="meta">${p.orig === rid ? 'own' : `via ${esc(tname(p.orig))}`}${p.slot ? ` · ${esc(p.tier)}` : ''}</span></div><div class="vals">${k(p.v)}</div></div>`).join('')}`;
   }).join('');
-  return `<div class="card"><h3>Your draft capital</h3>
-    <p class="lede">Every pick you own, from Sleeper's pick ownership (refreshed every few minutes, and whenever a trade goes through). Next year's slots are projected; later years are valued as mid-round picks.</p>
+  return `<div class="card"><h3>${rid === m.me ? 'Your' : `${esc(tname(rid))}'s`} draft capital</h3>
+    <p class="lede">Every pick ${rid === m.me ? 'you own' : 'they own'}, from Sleeper's pick ownership (refreshed every few minutes, and whenever a trade goes through). Next year's slots are projected; later years are valued as mid-round picks.</p>
     <div class="facts"><div><span>Picks owned</span><b>${owned.length}</b></div><div><span>1sts, all years</span><b>${owned.filter((p) => p.round === 1).length}</b></div><div><span>Pick value</span><b>${k(me.pickValue)}</b></div><div><span>League rank</span><b>${ordinal(rank)}</b><span>of ${m.teams.length}</span></div></div>
     ${bySeason}
     ${gone.length ? `<details class="tree" style="margin-top:10px"><summary>Traded away (${gone.length})</summary>${gone.map((p) => `<div class="asset"><span class="av head">PK</span><div class="nm"><b>${p.season} ${slotTxt(p)}</b><span class="meta">now ${esc(tname(p.owner))}'s</span></div><div class="vals muted">${k(p.v)}</div></div>`).join('')}</details>` : ''}
@@ -1850,13 +1851,16 @@ const sum2 = (a) => a.reduce((x, y) => x + (y || 0), 0);
 
 function viewDraft() {
   const m = S.model;
-  const me = team(m.me);
+  const focus = team(S.ui.draftRid) ? S.ui.draftRid : m.me;
+  const own = focus === m.me;
+  const me = team(focus);
+  const whose = own ? 'Your' : `${esc(me.name)}'s`;
   const y = m.league.season + 1;
   const n = m.teams.length;
   const D = S.draft;
   const board = draftBoard();
   const picksY = m.picks.filter((p) => p.season === y).map((p) => ({ ...p, overall: p.slot ? (p.round - 1) * n + p.slot : null })).sort((a, b) => (a.overall || 999) - (b.overall || 999));
-  const mine = picksY.filter((p) => p.owner === m.me);
+  const mine = picksY.filter((p) => p.owner === focus);
   const bucketFor = (ov) => D && D.hitRates.find((h) => ov >= h.a && ov <= h.b);
   const firstMine = mine[0];
   const myBucket = firstMine && firstMine.overall ? bucketFor(firstMine.overall) : null;
@@ -1878,8 +1882,8 @@ function viewDraft() {
 
   // insights
   const tips = [];
-  if (mine.length) tips.push({ dir: 'buy', text: `You own ${mine.length} ${y} pick${mine.length === 1 ? '' : 's'}: ${mine.map((p) => p.overall ? `${p.round}.${String(p.slot).padStart(2, '0')}` : roundName(p.round)).join(', ')} (projected from the playoff simulation).` });
-  else tips.push({ dir: 'sell', text: `You don't own a ${y} pick right now.` });
+  if (mine.length) tips.push({ dir: 'buy', text: `${own ? 'You own' : `${me.name} owns`} ${mine.length} ${y} pick${mine.length === 1 ? '' : 's'}: ${mine.map((p) => p.overall ? `${p.round}.${String(p.slot).padStart(2, '0')}` : roundName(p.round)).join(', ')} (projected from the playoff simulation).` });
+  else tips.push({ dir: 'sell', text: own ? `You don't own a ${y} pick right now.` : `${me.name} doesn't own a ${y} pick right now.` });
   if (myBucket && myBucket.rate != null) tips.push({ dir: myBucket.rate >= 0.5 ? 'good' : 'mid', text: `Historically, picks ${myBucket.label} became weekly starters ${pct(myBucket.rate)} of the time (${myBucket.n} players, ${pastClasses.filter((c) => c.mature).map((c) => c.year).join(', ')} classes).` });
   if (strength != null) tips.push({ dir: strength > 0.08 ? 'buy' : strength < -0.08 ? 'sell' : 'mid', text: `The market values ${y} 1sts ${Math.abs(Math.round(strength * 100))}% ${strength >= 0 ? 'above' : 'below'} a typical class at this point of the season${strength > 0.08 ? ': a strong class, so picks are worth holding or buying early' : strength < -0.08 ? ': a weaker class, so trading picks for proven players may be the better use' : ''}.` });
   if (thisM && nextM) tips.push({ dir: 'mid', text: `${y} vs ${y + 1}: a ${y} mid 1st is worth ${Math.round((thisM.r1 / nextM.r1) * 100)}% of a ${y + 1} mid 1st right now. ${thisM.r1 > nextM.r1 * 1.1 ? `Swapping ${y + 1} picks for ${y} picks costs a premium.` : `You can often trade a ${y + 1} 1st for a ${y} 1st plus a sweetener.`}` });
@@ -1889,8 +1893,8 @@ function viewDraft() {
     const thin = deep[deep.length - 1];
     if (thin[1] <= -2) tips.push({ dir: 'sell', text: `${thin[0]} is thin (${boardMix[thin[0]]} of the top 24 vs ${avgMix[thin[0]].toFixed(1)} usually). If you need a ${thin[0]}, it'll cost an early pick.` });
   }
-  if (me.needs.length) tips.push({ dir: 'mid', text: `Your roster needs: ${me.needs.join(', ')}. ${D && D.posHit ? me.needs.map((pos) => D.posHit[pos] && D.posHit[pos].rate != null ? `${pos}s taken in rounds 1-2 hit ${pct(D.posHit[pos].rate)}` : '').filter(Boolean).join('; ') : ''}.` });
-  const sellers = picksY.filter((p) => p.round <= 2 && p.owner !== m.me && team(p.owner) && ['buy'].includes(team(p.owner).posture.tone) && !team(p.owner).avoid);
+  if (me.needs.length) tips.push({ dir: 'mid', text: `${own ? 'Your' : `${me.name}'s`} roster needs: ${me.needs.join(', ')}. ${D && D.posHit ? me.needs.map((pos) => D.posHit[pos] && D.posHit[pos].rate != null ? `${pos}s taken in rounds 1-2 hit ${pct(D.posHit[pos].rate)}` : '').filter(Boolean).join('; ') : ''}.` });
+  const sellers = picksY.filter((p) => p.round <= 2 && p.owner !== focus && team(p.owner) && ['buy'].includes(team(p.owner).posture.tone) && !team(p.owner).avoid);
   if (sellers.length) tips.push({ dir: 'buy', text: `Contenders holding ${y} picks they may sell for win-now help: ${sellers.slice(0, 5).map((p) => `${tname(p.owner)} (${p.round}.${String(p.slot || 0).padStart(2, '0')}${team(p.owner).needs.length ? `, needs ${team(p.owner).needs.join('/')}` : ''})`).join('; ')}.` });
   const hoard = {};
   for (const p of picksY.filter((x) => x.round === 1)) hoard[p.owner] = (hoard[p.owner] || 0) + 1;
@@ -1906,7 +1910,7 @@ function viewDraft() {
     const mk = p.overall ? mock[p.overall] : null;
     const proj = mk ? mk.player : null;
     const h = p.overall ? bucketFor(p.overall) : null;
-    return `<tr class="${p.owner === m.me ? 'me' : ''}">
+    return `<tr class="${p.owner === focus ? 'me' : ''}">
       <td class="num">${p.overall ? `${p.round}.${String(p.slot).padStart(2, '0')}` : roundName(p.round)}</td>
       <td><div class="who">${teamAvatar(o)}<div>${tlink(p.owner)}<div class="meta">${posture(o)}${p.orig !== p.owner ? ` via ${esc(tname(p.orig))}` : ''}</div></div></div></td>
       <td class="num">${team(p.orig) ? `${team(p.orig).w}-${team(p.orig).l}` : ''}</td>
@@ -1942,15 +1946,16 @@ function viewDraft() {
   const hist = m.leagueDrafts.map((d) => `<details class="tree"${d.season === m.league.season ? ' open' : ''}><summary>${d.season} rookie draft</summary><div class="scroll"><table class="t"><thead><tr><th>Pick</th><th>Player</th><th>Drafted by</th><th class="num">Value now</th><th class="num">Value rank</th><th>vs slot</th></tr></thead><tbody>${d.picks.slice(0, 24).map((p) => `<tr class="${p.rid === m.me ? 'me' : ''}"><td class="num">${p.round}.${String(p.draft_slot || ((p.pick_no - 1) % n) + 1).padStart(2, '0')}</td><td><div class="who">${headshot(p.player_id)}${playerLink(p.player_id, p.name)} ${posTag(p.pos)}</div></td><td>${tlink(p.rid)}</td><td class="num">${k(p.v)}</td><td class="num">${p.valueRank}</td><td class="${p.edge >= 4 ? 'up' : p.edge <= -4 ? 'down' : 'muted'}">${p.edge >= 4 ? `steal (+${p.edge})` : p.edge <= -4 ? `reach (${p.edge})` : 'on par'}</td></tr>`).join('')}</tbody></table></div></details>`).join('');
   const drafters = m.teams.filter((t) => t.drafting).sort((a, b) => b.drafting.avgEdge - a.drafting.avgEdge).map((t) => `<tr class="${t.isMe ? 'me' : ''}"><td><div class="who">${teamAvatar(t)}${tlink(t.rid)}</div></td><td class="num">${t.drafting.n}</td><td class="num ${t.drafting.avgEdge > 1 ? 'up' : t.drafting.avgEdge < -1 ? 'down' : ''}">${t.drafting.avgEdge >= 0 ? '+' : ''}${t.drafting.avgEdge.toFixed(1)}</td><td class="small">${t.drafting.best ? esc(t.drafting.best.name) : ''}</td></tr>`).join('');
 
-  return `<div class="three" style="margin-bottom:16px">
-      <div class="card tile hot">${icon('ticket')}<div class="num">${mine.length ? mine.map((p) => p.overall ? `${p.round}.${String(p.slot).padStart(2, '0')}` : roundName(p.round)).join(' · ') : '—'}</div><div class="lab">Your ${y} picks (projected slots)</div></div>
+  const picker = `<div class="sec-h" style="margin-bottom:10px"><h2>${y} rookie draft</h2><span class="row" style="gap:8px"><span class="muted small">Viewing</span><select class="sel" data-draftteam="1">${[...m.teams].sort((a2, b2) => (b2.rid === m.me) - (a2.rid === m.me) || a2.name.localeCompare(b2.name)).map((t) => `<option value="${t.rid}" ${t.rid === focus ? 'selected' : ''}>${esc(t.name)}${t.rid === m.me ? ' (you)' : ''}</option>`).join('')}</select></span></div>`;
+  return picker + `<div class="three" style="margin-bottom:16px">
+      <div class="card tile hot">${icon('ticket')}<div class="num">${mine.length ? mine.map((p) => p.overall ? `${p.round}.${String(p.slot).padStart(2, '0')}` : roundName(p.round)).join(' · ') : '—'}</div><div class="lab">${whose} ${y} picks (projected slots)</div></div>
       <div class="card tile">${icon('chart')}<div class="num">${strength == null ? '—' : `${strength >= 0 ? '+' : ''}${Math.round(strength * 100)}%`}</div><div class="lab">${y} class vs a typical class (market value of a mid 1st)</div></div>
-      <div class="card tile">${icon('trophy')}<div class="num">${myBucket && myBucket.rate != null ? pct(myBucket.rate) : '—'}</div><div class="lab">${myBucket ? `Starter rate for picks ${myBucket.label}` : 'Starter rate at your first pick'}</div></div>
+      <div class="card tile">${icon('trophy')}<div class="num">${myBucket && myBucket.rate != null ? pct(myBucket.rate) : '—'}</div><div class="lab">${myBucket ? `Starter rate for picks ${myBucket.label}` : `Starter rate at ${own ? 'your' : 'their'} first pick`}</div></div>
     </div>
     <div class="split">
       <div class="grid">
-        ${capitalCard()}
-        ${outWithOldCard()}
+        ${capitalCard(focus)}
+        ${own ? outWithOldCard() : ''}
         <div class="card"><h3>How to win this draft</h3><ul class="ev">${tips.map((t) => `<li class="d-${t.dir}">${esc(t.text)}</li>`).join('')}</ul></div>
         <div class="card"><div class="sec-h"><h3 style="margin:0">${y} draft order, rounds 1-2</h3><button class="btn sm primary" data-action="exportMock">${icon('download')}Export mock draft</button></div><p class="lede">${m.draftOrderMethod === 'standings' ? 'Order from the playoff simulation: worst projected finish picks first.' : m.draftOrderMethod === 'maxpf' ? 'Non-playoff teams by projected max PF (lowest first: best lineup each week so far, plus the same weekly pace for the rest of the season), then playoff teams by projected finish.' : 'Every team by projected max PF, lowest first.'} Change this in Settings. "Mock pick" walks ${board ? esc(board.mine ? 'your board' : board.source) : 'a prospect board (add one below)'} in order: the first three picks take the best player available, then each team weighs the next few prospects against its weakest positions (league rank by dynasty value), so a team that's stacked at a position lets that player slide. "Starter rate" is how often that slot produced a weekly starter in past classes.</p>
           <div class="scroll"><table class="t"><thead><tr><th>Pick</th><th>Owner</th><th class="num">Record</th><th class="num">Max PF (proj.)</th><th>Mock pick</th><th class="num">Starter rate</th><th class="num">Value</th></tr></thead><tbody>${r12.map(orderRow).join('')}</tbody></table></div>
@@ -3925,12 +3930,14 @@ function mockDraftPoster() {
   const picksY = m.picks.filter((p) => p.season === y).map((p) => ({ ...p, overall: p.slot ? (p.round - 1) * n + p.slot : null })).sort((a, b) => (a.overall || 999) - (b.overall || 999));
   const rounds = [...new Set(picksY.map((p) => p.round))].sort((a, b) => a - b);
   const mock = mockFor(m, picksY, board);
+  const focus = team(S.ui.draftRid) ? S.ui.draftRid : m.me;
   const method = m.draftOrderMethod === 'standings' ? 'Order: projected finish, worst picks first' : m.draftOrderMethod === 'maxpf' ? 'Order: non-playoff teams by projected max PF, then playoff teams' : 'Order: projected max PF, lowest first';
   return {
     banner: 4,
     file: `${String(m.league.name || 'league').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')}-${y}-mock-draft.png`,
     eyebrow: `${m.league.name} · ${y} rookie draft`,
     title: `${y} Mock Draft`,
+    highlight: focus === m.me ? 'your' : `${tname(focus)}'s`,
     subtitle: `${method} · as of ${new Date().toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' })}`,
     rounds: rounds.map((r) => ({
       label: `Round ${r}`,
@@ -3939,7 +3946,7 @@ function mockDraftPoster() {
         const proj = mk ? mk.player : null;
         return {
           pick: p.overall ? `${p.round}.${String(p.slot).padStart(2, '0')}` : roundName(p.round),
-          owner: tname(p.owner), avatar: avatarUrl(team(p.owner)), isMe: p.owner === m.me,
+          owner: tname(p.owner), avatar: avatarUrl(team(p.owner)), isMe: p.owner === focus,
           via: p.orig !== p.owner ? tname(p.orig) : '',
           player: proj ? { name: proj.name, pos: proj.pos, school: proj.school || '' } : null,
           why: mk && mk.reason !== 'bpa' ? `${mk.reason === 'need' ? 'Need' : 'Fit'} ${mk.needPos}${mk.needRank ? ` · ${ordinal(mk.needRank)}` : ''}` : '',
@@ -4798,6 +4805,7 @@ document.addEventListener('change', async (e) => {
     await runSync();
     return;
   }
+  if (el.dataset.draftteam) { S.ui.draftRid = Number(el.value); render(); return; }
   if (el.dataset.votteam) { S.ui.vot.detail = { ...S.ui.vot.detail, rid: Number(el.value) }; location.hash = `#ledger/${el.value}`; return; }
   if (el.dataset.pick === 'league') {
     try { await pickLeague(el.value); } catch (err) { S.pick.error = err.message; }

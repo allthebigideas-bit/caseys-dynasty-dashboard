@@ -478,7 +478,7 @@ export async function drawMockDraft(spec) {
     lx += 74;
   }
   ctx.textAlign = 'left'; ctx.fillStyle = MUTED; ctx.font = font(19, 600);
-  ctx.fillText('Gold border = your pick   ·   "via" = original owner of a traded pick   ·   "Need RB · 11th" = picked for a weak room (11th-best RBs in the league)', lx + 18, y + 31);
+  ctx.fillText(`Gold border = ${spec.highlight || 'your'} picks   ·   "via" = original owner of a traded pick   ·   "Need RB · 11th" = picked for a weak room (11th-best RBs in the league)`, lx + 18, y + 31);
   y += LEGEND;
 
   for (const band of bands) {
