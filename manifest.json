@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Casey's Dynasty Dashboard",
-  "version": "2.38.0",
+  "version": "2.38.1",
   "description": "League dossier for Sleeper dynasty: graded trades, manager profiles, start/sit and waiver claims. Loads the team of whoever is logged in to Sleeper.",
   "icons": {
     "16": "icons/icon16.png",
