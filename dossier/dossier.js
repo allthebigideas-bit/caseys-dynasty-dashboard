@@ -1,5 +1,5 @@
 import { gate, lock } from '../splash/gate.js';
-import { downloadPoster, drawMockDraft, downloadCanvas } from './poster.js';
+import { downloadPoster, drawMockDraft, downloadCanvas, drawLedger } from './poster.js';
 import { createSync, NEED_TEAM } from '../lib/sync.js';
 import { networkSleeper } from '../lib/sleeper-port.js';
 import { buildModel, roundName, ordinal, dateStr, fmtK, dur } from '../lib/intel.js';
@@ -928,7 +928,7 @@ function viewValueTime() {
         <tr class="tot"><td colspan="5"><b>Appreciation</b></td><td class="num"><b>${sgnK(r.residual)}</b></td></tr></tbody></table></div>`;
     }
     detailCard = `<div class="card" style="margin-top:14px" id="vot-detail"><div class="sec-h"><h3 style="margin:0">${teamAvatar(team(detail.rid))} ${esc(tname(detail.rid))}: ${esc((tabs.find((x) => x[0] === detail.kind) || tabs[0])[1])}</h3>
-      <span class="row" style="gap:8px"><select class="sel" data-votteam="1">${m.teams.map((t) => `<option value="${t.rid}" ${t.rid === detail.rid ? 'selected' : ''}>${esc(t.name)}</option>`).join('')}</select><span class="tseg2">${tabs.map(([k2, l]) => `<button class="${detail.kind === k2 ? 'on' : ''}" data-action="votDetail" data-rid="${detail.rid}" data-kind="${k2}">${l}</button>`).join('')}</span><button class="btn sm" data-action="votDetailClose">Close</button></span></div>
+      <span class="row" style="gap:8px"><select class="sel" data-votteam="1">${m.teams.map((t) => `<option value="${t.rid}" ${t.rid === detail.rid ? 'selected' : ''}>${esc(t.name)}</option>`).join('')}</select><span class="tseg2">${tabs.map(([k2, l]) => `<button class="${detail.kind === k2 ? 'on' : ''}" data-action="votDetail" data-rid="${detail.rid}" data-kind="${k2}">${l}</button>`).join('')}</span><button class="btn sm primary" data-action="exportLedger" title="Every category for this team in one image">${icon('download')}Export ledger</button><button class="btn sm" data-action="votDetailClose">Close</button></span></div>
       ${body}</div>`;
   }
 
@@ -3973,6 +3973,97 @@ function valueTimePoster() {
   };
 }
 
+function ledgerPoster(rid) {
+  const m = S.model;
+  const VT = m.valueTime;
+  const ui = S.ui.vot || {};
+  const W3 = VT.windows;
+  const from = W3[ui.from] ? ui.from : W3.startup ? 'startup' : W3.season ? 'season' : 'draft';
+  const V = W3[from];
+  const t = team(rid);
+  const r = V.rows[rid];
+  const L2 = V.ledger[rid];
+  const fromSeason = from !== 'draft';
+  const startName = from === 'startup' ? 'Startup draft' : from === 'season' ? 'Season start' : 'Rookie draft';
+  const dY = (ts) => new Date(ts).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+  const sg = (v) => `${v > 0 ? '+' : v < 0 ? '−' : ''}${k(Math.abs(v))}`;
+  const GOOD = '#5fe39a', BAD = '#ff8a8a', MUT = '#c4b3e6', FNT = '#8f7bb6';
+  const tone = (v) => (v > 250 ? GOOD : v < -250 ? BAD : MUT);
+  const nm = (key) => {
+    if (key.startsWith('p:')) { const p = P(key.slice(2)); return `${p.name}${p.pos ? ` (${p.pos})` : ''}`; }
+    const [, y, rd, orig] = key.split(':');
+    return `${y} ${roundName(Number(rd))} (${tname(Number(orig))})`;
+  };
+  const nowOf = (key) => (key.startsWith('p:') ? pval(key.slice(2)).v || 0 : 0);
+  // trades
+  const byId = new Map([...m.leagueTrades.map((nt) => [nt.id, { nt, src: 'cur' }]), ...m.histTrades.map((nt) => [nt.id, { nt, src: 'old' }])]);
+  const netOf = (g) => (g && g[rid] ? g[rid].got - g[rid].gave : null);
+  const tradeRows = L2.trades.slice().sort((a, b) => a.at - b.at).map((x) => {
+    const nt = byId.get(x.id) ? byId.get(x.id).nt : null;
+    const nn = nt ? netOf(nt.now) : null;
+    return { cells: [{ text: dY(x.at), color: MUT }, { text: nt ? nt.rids.filter((q) => q !== rid).map((q) => tname(q)).join(', ') : '' }, { text: x.inn.map((a) => nm(a.key)).join(', ') || '—' }, { text: x.out.map((a) => nm(a.key)).join(', ') || '—', color: MUT }, { text: sg(x.net), color: tone(x.net), bold: true }, { text: nn == null ? '—' : sg(nn), color: FNT }] };
+  });
+  const sections = [{
+    title: 'Trades', sub: `${L2.trades.length} trades · Trade summary "Net then"`, total: { text: sg(r.trades), color: tone(r.trades) }, split: false,
+    cols: [{ label: 'Date', w: 1.1, align: 'left' }, { label: 'With', w: 1.3, align: 'left' }, { label: 'Got', w: 4, align: 'left' }, { label: 'Gave', w: 4, align: 'left' }, { label: 'Net then', w: 1 }, { label: 'Net now', w: 1 }],
+    rows: tradeRows,
+  }];
+  if (fromSeason) sections.push({
+    title: 'Rookie drafts', sub: `${L2.draft.length} picks · player value minus pick value, the week of the draft`, total: { text: sg(r.draft), color: tone(r.draft) }, split: false,
+    cols: [{ label: 'Draft', w: 0.7, align: 'left' }, { label: 'Pick used', w: 2.4, align: 'left' }, { label: 'Player taken', w: 2.6, align: 'left' }, { label: 'Pick value', w: 1 }, { label: 'Player then', w: 1 }, { label: 'Gain', w: 1 }, { label: 'Player today', w: 1 }],
+    rows: L2.draft.slice().sort((a, b) => a.at - b.at).map((x) => ({ cells: [{ text: String(new Date(x.at).getFullYear()), color: MUT }, { text: x.pick ? nm(x.pick) : '—', color: MUT }, { text: nm(x.key) }, { text: k(x.vPick) }, { text: k(x.v) }, { text: sg(x.v - x.vPick), color: tone(x.v - x.vPick), bold: true }, { text: k(nowOf(x.key)), color: FNT }] })),
+  });
+  const ev = [...L2.adds.map((x) => ({ ...x, add: true })), ...L2.drops.map((x) => ({ ...x, add: false }))].sort((a, b) => a.at - b.at);
+  sections.push({
+    title: 'Waivers', sub: `${L2.adds.length} adds, ${L2.drops.length} drops · valued the week of the move`, total: { text: sg(r.added - r.lost), color: tone(r.added - r.lost) },
+    cols: [{ label: 'Date', w: 1.2, align: 'left' }, { label: 'Move', w: 0.8, align: 'left' }, { label: 'Player', w: 2.6, align: 'left' }, { label: 'That week', w: 1 }, { label: 'Today', w: 0.9 }],
+    rows: ev.map((x) => ({ cells: [{ text: dY(x.at), color: MUT }, { text: x.add ? 'Added' : 'Dropped', color: x.add ? GOOD : BAD, bold: true }, { text: nm(x.key) }, { text: `${x.add ? '+' : '−'}${k(x.v)}`, color: x.add ? GOOD : BAD }, { text: k(nowOf(x.key)), color: FNT }] })),
+    foot: [{ label: 'Waivers added', text: `+${k(r.added)}`, color: GOOD }, { label: 'Value lost (drops, and players released in trades)', text: `−${k(r.lost)}`, color: BAD }],
+  });
+  const how = { start: startName.toLowerCase(), trade: 'trade', draft: 'drafted', move: 'waivers' };
+  const out = { held: 'today', trade: 'traded', move: 'dropped', draft: 'used' };
+  const appr = L2.held.filter((x) => Math.abs(x.vOut - x.vIn) >= 1).sort((a, b) => (b.vOut - b.vIn) - (a.vOut - a.vIn));
+  const foot = [{ label: `Players and picks (${appr.length} that changed value)`, text: sg(r.assetAppr), color: tone(r.assetAppr) }];
+  if (Math.abs(r.pkgAdj) >= 1) foot.push({ label: 'Trade pricing (package adjustment vs each player\'s own value)', text: sg(r.pkgAdj), color: tone(r.pkgAdj) });
+  if (Math.abs(r.other) >= 1) foot.push({ label: 'Dashboard total vs sum of assets (projected pick slots, unvalued players)', text: sg(r.other), color: tone(r.other) });
+  foot.push({ label: 'Appreciation', text: sg(r.residual), color: tone(r.residual), bold: true });
+  sections.push({
+    title: 'Appreciation', sub: 'every asset\'s change while the team held it', total: { text: sg(r.residual), color: tone(r.residual) },
+    cols: [{ label: 'Asset', w: 2.6, align: 'left' }, { label: 'From', w: 1, align: 'left' }, { label: 'Until', w: 1.1, align: 'left' }, { label: 'In', w: 0.8 }, { label: 'Out', w: 0.8 }, { label: 'Change', w: 0.9 }],
+    rows: appr.map((x) => ({ cells: [{ text: nm(x.key) }, { text: how[x.how] || x.how, color: FNT }, { text: x.out === 'held' ? 'today' : `${out[x.out] || x.out} ${new Date(x.to).toLocaleDateString(undefined, { month: 'short', year: '2-digit' })}`, color: FNT }, { text: k(x.vIn), color: MUT }, { text: k(x.vOut), color: MUT }, { text: sg(x.vOut - x.vIn), color: tone(x.vOut - x.vIn), bold: true }] })),
+    foot,
+  });
+  const bridge = [
+    { label: startName, text: k(r.start), sub: dY(V.start) },
+    { label: 'Trades', text: sg(r.trades), color: tone(r.trades), sub: `${r.tradeCount} trades` },
+    ...(fromSeason ? [{ label: 'Rookie drafts', text: sg(r.draft), color: tone(r.draft), sub: `${r.draftCount} picks` }] : []),
+    { label: 'Waivers added', text: `+${k(r.added)}`, color: GOOD, sub: `${r.addCount} adds` },
+    { label: 'Value lost', text: `−${k(r.lost)}`, color: BAD, sub: `${r.lostCount} players` },
+    { label: 'Appreciation', text: sg(r.residual), color: tone(r.residual), sub: 'while held' },
+    { label: 'Today', text: k(r.end), sub: `${sg(r.change)}${r.start ? ` (${r.change >= 0 ? '+' : ''}${Math.round((r.change / r.start) * 100)}%)` : ''}` },
+  ];
+  return {
+    banner: 3,
+    file: `caseys-ledger-${String(t.name).toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${fileStamp()}.png`,
+    title: 'Team ledger', eyebrow: leagueName(),
+    subtitle: `${t.name} · ${dY(V.start)} to today`,
+    team: { name: t.name, avatar: avatarUrl(t) },
+    bridge, sections,
+    notes: [
+      `${startName} + Trades${fromSeason ? ' + Rookie drafts' : ''} + Waivers added − Value lost + Appreciation = Today.`,
+      'Weekly values: DynastyProcess, put on the dashboard\'s scale by rank. Today: the dashboard\'s KTC/FantasyCalc blend. Trades: Trade summary\'s figures.',
+    ],
+  };
+}
+
+async function exportLedger(el) {
+  if (!S.model || !S.ui.vot || !S.ui.vot.detail) return;
+  const label = el ? el.innerHTML : '';
+  if (el) { el.disabled = true; el.textContent = 'Drawing…'; }
+  try { const spec = ledgerPoster(S.ui.vot.detail.rid); await downloadCanvas(await drawLedger(spec), spec.file); } catch (e) { console.error(e); S.error = `Couldn't make the image: ${e.message}`; render(); }
+  finally { if (el) { el.disabled = false; el.innerHTML = label; } }
+}
+
 async function exportPoster(el, build) {
   if (!S.model) return;
   const label = el ? el.innerHTML : '';
@@ -4498,6 +4589,7 @@ const actions = {
   exportSeason(el) { return exportPoster(el, seasonPoster); },
   exportMock(el) { return exportMock(el); },
   exportVot(el) { return exportPoster(el, valueTimePoster); },
+  exportLedger(el) { return exportLedger(el); },
   async saveSettings() {
     const username = ($('#cfg-username') || {}).value || '';
     const leagueId = S.cfg.leagueId || '';

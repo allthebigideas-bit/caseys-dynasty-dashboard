@@ -174,6 +174,16 @@ The sidebar on the left has every page. The top bar has search (players and mana
   - **Who drafts well in this league,** and every past rookie draft with what each pick became.
   - **Prospect board:** FantasyPros dynasty rookie rankings when they cover next year's class. Otherwise, paste any ranking list. You can star your guys.
 
+## What changed in 2.38.0
+- **Team ledger export.** In Value over time's player-by-player panel (click any team's Trades, Waivers, Value lost, Rookie drafts or Appreciation number), "Export ledger" saves one image with everything for that team:
+  - the bridge from the starting value to today, step by step;
+  - every trade, with Trade summary's Net then and Net now;
+  - every rookie pick: pick used, player taken, gain;
+  - every waiver add and drop, with value that week and today;
+  - every asset's appreciation while held, with the totals that add up to the Appreciation number.
+
+  Long lists are split into two columns so the whole ledger stays in one image.
+
 ## What changed in 2.37.1
 - The Value over time export now has the League totals row (or the total for the teams you picked) and sorts teams the same way as the table on screen.
 
