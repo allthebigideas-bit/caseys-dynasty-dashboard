@@ -64,3 +64,25 @@ test('rookie draft moves count in their own column', () => {
   assert.equal(row.lost, 0);
   assert.equal(row.residual, 5200 - 4000 - 1000);
 });
+
+test('the ledger accounts for the whole residual', () => {
+  const v = { 'p:A': 1000, 'p:B': 2000, 'p:C': 500, 'k:2027:1:1': 3000 };
+  const later = { 'p:A': 1500, 'p:B': 1800, 'p:C': 700, 'k:2027:1:1': 3100 };
+  const valueAt = (k, ts) => (ts >= 50 ? later[k] : v[k]) || 0;
+  const r = valueOverTime({
+    teams: [{ rid: 1, keys: ['p:B', 'p:C'], endValue: 2800 }, { rid: 2, keys: ['p:A', 'k:2027:1:1'], endValue: 4700 }],
+    moves: [
+      { at: 10, kind: 'trade', sides: { 1: { inn: ['p:B'], out: ['p:A'], released: [] }, 2: { inn: ['p:A'], out: ['p:B'], released: [] } }, net: { 1: 900, 2: -900 } },
+      { at: 60, kind: 'move', sides: { 1: { inn: ['p:C'], out: [], released: [] } } },
+    ],
+    start: 0, now: 100, valueAt, posOf: () => 'WR', endValueOf: (k) => later[k],
+  });
+  for (const rid of [1, 2]) {
+    const row = r.rows[rid];
+    assert.equal(Math.round(row.assetAppr + row.pkgAdj + row.other), Math.round(row.residual));
+  }
+  assert.equal(r.rows[1].trades, 900);
+  assert.equal(r.rows[1].pkgAdj, 1000 - 900);
+  assert.equal(r.rows[1].other, 2800 - (1800 + 700));
+  assert.equal(r.ledger[1].adds.length, 1);
+});

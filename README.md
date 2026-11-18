@@ -174,6 +174,14 @@ The sidebar on the left has every page. The top bar has search (players and mana
   - **Who drafts well in this league,** and every past rookie draft with what each pick became.
   - **Prospect board:** FantasyPros dynasty rookie rankings when they cover next year's class. Otherwise, paste any ranking list. You can star your guys.
 
+## What changed in 2.35.0
+- **Value over time goes back to the startup draft.** A new "Since the startup draft" view, now the default, starts from the rosters right after the league's first draft and replays every trade, waiver move and rookie draft since, across seasons. "This season" and "Since this year's rookie draft" are still there.
+- **Trades match Trade summary.** The Trades column now uses Trade summary's own "Net then" figures, KTC package adjustment included. The count covers the same trades: this season, plus earlier seasons in the startup view. Click a team's Trades number to open Trade summary with that manager's row picked out.
+- **Every number is traceable.** Click a team's Waivers added, Value lost, Rookie drafts or Appreciation for a player-by-player report:
+  - **Waivers:** every add and drop, with its value that week and today.
+  - **Rookie drafts:** each pick used, the player taken, and the gain.
+  - **Appreciation:** every player and pick the team has held, what it was worth when it arrived and when it left (or today), with the trade-pricing and pick-slot differences listed separately so the lines add up to the Appreciation number exactly.
+
 ## What changed in 2.34.0
 - **Fixed: historical values were inflated.** "Values at the time" (Value over time and Trade summary's "at trade") put DynastyProcess values on the dashboard's scale by percentile. DynastyProcess's weekly file ranges from under 400 to nearly 700 rows, so the same player's converted value jumped up or down by a third from week to week with the file's length. It now converts by rank: the Nth most valuable asset that week gets the value of today's Nth most valuable asset. Trade summary's "at trade" numbers will shift a little too.
 - **Value over time:**
