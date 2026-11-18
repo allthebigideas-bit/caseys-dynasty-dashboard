@@ -174,6 +174,10 @@ The sidebar on the left has every page. The top bar has search (players and mana
   - **Who drafts well in this league,** and every past rookie draft with what each pick became.
   - **Prospect board:** FantasyPros dynasty rookie rankings when they cover next year's class. Otherwise, paste any ranking list. You can star your guys.
 
+## What changed in 2.32.0
+- **Mock draft export.** On the Rookie draft page, "Export mock draft" saves a PNG of next year's draft: the league crest and art, a gold title, every round side by side, and for each pick the slot, the prospect at that spot on your board (with position colour and school) and the team that owns it ("via" for traded picks). Your picks have a gold border.
+- **Clearer position hit rates.** The "QB/RB/WR/TE in rounds 1-2" tiles now say "5 of 9 hit" instead of "9 players", with a note underneath explaining what the numbers count.
+
 ## What changed in 2.31.0
 - **New page: Value over time.** A line chart of every team's value each week since the rookie draft (click a team to pick it out), a table showing where each team's value came from (draft day, trades, waivers added, value lost, appreciation, today), and value by position with toggles.
 - Weekly values come from DynastyProcess's weekly history converted to the KTC scale, the same as Trade summary's "at trade" figures. They load during a sync and show under Settings → Data sources.

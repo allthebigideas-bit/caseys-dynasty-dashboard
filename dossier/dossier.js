@@ -1,5 +1,5 @@
 import { gate, lock } from '../splash/gate.js';
-import { downloadPoster } from './poster.js';
+import { downloadPoster, drawMockDraft, downloadCanvas } from './poster.js';
 import { createSync, NEED_TEAM } from '../lib/sync.js';
 import { networkSleeper } from '../lib/sleeper-port.js';
 import { buildModel, roundName, ordinal, dateStr, fmtK, dur } from '../lib/intel.js';
@@ -1762,7 +1762,7 @@ function viewDraft() {
         ${capitalCard()}
         ${outWithOldCard()}
         <div class="card"><h3>How to win this draft</h3><ul class="ev">${tips.map((t) => `<li class="d-${t.dir}">${esc(t.text)}</li>`).join('')}</ul></div>
-        <div class="card"><h3>${y} draft order, rounds 1-2</h3><p class="lede">${m.draftOrderMethod === 'standings' ? 'Order from the playoff simulation: worst projected finish picks first.' : m.draftOrderMethod === 'maxpf' ? 'Non-playoff teams by projected max PF (lowest first: best lineup each week so far, plus the same weekly pace for the rest of the season), then playoff teams by projected finish.' : 'Every team by projected max PF, lowest first.'} Change this in Settings. "Board" is the prospect at that spot on ${board ? esc(board.mine ? 'your board' : board.source) : 'a prospect board (add one below)'}. "Starter rate" is how often that slot produced a weekly starter in past classes.</p>
+        <div class="card"><div class="sec-h"><h3 style="margin:0">${y} draft order, rounds 1-2</h3><button class="btn sm primary" data-action="exportMock">${icon('download')}Export mock draft</button></div><p class="lede">${m.draftOrderMethod === 'standings' ? 'Order from the playoff simulation: worst projected finish picks first.' : m.draftOrderMethod === 'maxpf' ? 'Non-playoff teams by projected max PF (lowest first: best lineup each week so far, plus the same weekly pace for the rest of the season), then playoff teams by projected finish.' : 'Every team by projected max PF, lowest first.'} Change this in Settings. "Board" is the prospect at that spot on ${board ? esc(board.mine ? 'your board' : board.source) : 'a prospect board (add one below)'}. "Starter rate" is how often that slot produced a weekly starter in past classes.</p>
           <div class="scroll"><table class="t"><thead><tr><th>Pick</th><th>Owner</th><th class="num">Record</th><th class="num">Max PF (proj.)</th><th>Board</th><th class="num">Starter rate</th><th class="num">Value</th></tr></thead><tbody>${r12.map(orderRow).join('')}</tbody></table></div>
           <a class="link small" href="#picks">Every pick, ${m.pickSeasons.join(' and ')}</a></div>
         <div class="card"><div class="sec-h"><h3 style="margin:0">${y} prospect board</h3><div class="row"><span class="muted small">${board ? (board.mine ? `Your board, saved ${esc(dateStr(board.at))}` : `${esc(board.source)}`) : ''}</span><button class="btn sm" data-action="boardEdit">${board && board.mine ? 'Edit board' : 'Paste a board'}</button>${board && board.mine ? '<button class="btn sm" data-action="boardClear">Use FantasyPros</button>' : ''}</div></div>
@@ -1779,7 +1779,8 @@ function viewDraft() {
           <div class="row small muted" style="margin-top:8px">${['QB', 'RB', 'WR', 'TE'].map((pos) => `<span><i class="sw m-${pos}"></i>${pos}</span>`).join('')}</div></div>
         <div class="card"><h3>What each slot has produced</h3><p class="lede">Classes with at least two seasons in the league. A hit is a top-12 QB, top-24 RB, top-30 WR or top-12 TE by dynasty value today.</p>
           ${D ? `<div class="scroll"><table class="t"><thead><tr><th>Slot</th><th class="num">Hit rate</th><th class="num">n</th><th>Best outcomes</th></tr></thead><tbody>${D.hitRates.map((h) => `<tr class="${myBucket && h.label === myBucket.label ? 'me' : ''}"><td>${esc(h.label)}</td><td class="num">${h.rate == null ? '—' : pct(h.rate)}</td><td class="num">${h.n}</td><td class="small">${esc(h.best.join(', '))}</td></tr>`).join('')}</tbody></table></div>
-          <div class="facts" style="margin-top:12px">${['QB', 'RB', 'WR', 'TE'].map((pos) => `<div><span>${pos} in rounds 1-2</span><b>${D.posHit[pos].rate == null ? '—' : pct(D.posHit[pos].rate)}</b><span>${D.posHit[pos].n} players</span></div>`).join('')}</div>` : '<p class="muted">Loads on the next sync.</p>'}</div>
+          <div class="facts" style="margin-top:12px">${['QB', 'RB', 'WR', 'TE'].map((pos) => { const h = D.posHit[pos]; const hits = h.hits ?? Math.round((h.rate || 0) * h.n); return `<div><span>${pos} in rounds 1-2</span><b>${h.rate == null ? '—' : pct(h.rate)}</b><span>${hits} of ${h.n} hit</span></div>`; }).join('')}</div>
+          ${(() => { const mat = pastClasses.filter((c) => c.mature); const tot = ['QB', 'RB', 'WR', 'TE'].reduce((s2, pos) => s2 + D.posHit[pos].n, 0); const te = D.posHit.TE; return `<p class="faint small" style="margin:10px 0 0">Rounds 1-2 are the top ${2 * n} rookies in each class by dynasty value just after the NFL draft. Across the ${mat.length} classes with two seasons in the league (${mat.map((c) => c.year).join(', ')}), that's ${tot} players. The percentage is how many at each position became hits (same top-12/24/30/12 definition as above). For example, ${te.n} of the ${tot} were tight ends and ${te.hits ?? Math.round((te.rate || 0) * te.n)} of those ${te.n} hit. Small samples like that swing a lot with one player.</p>`; })()}` : '<p class="muted">Loads on the next sync.</p>'}</div>
         ${drafters ? `<div class="card"><h3>Who drafts well here</h3><p class="lede">Average places gained between draft slot and current value rank in this league's rookie drafts.</p><div class="scroll"><table class="t"><thead><tr><th>Manager</th><th class="num">Picks</th><th class="num">vs slot</th><th>Best pick</th></tr></thead><tbody>${drafters}</tbody></table></div></div>` : ''}
         ${hist ? `<div class="card"><h3>This league's rookie drafts</h3>${hist}</div>` : ''}
       </div>
@@ -3723,6 +3724,47 @@ function seasonPoster() {
   };
 }
 
+
+function mockDraftPoster() {
+  const m = S.model;
+  const y = m.league.season + 1;
+  const n = m.teams.length;
+  const board = draftBoard();
+  const picksY = m.picks.filter((p) => p.season === y).map((p) => ({ ...p, overall: p.slot ? (p.round - 1) * n + p.slot : null })).sort((a, b) => (a.overall || 999) - (b.overall || 999));
+  const rounds = [...new Set(picksY.map((p) => p.round))].sort((a, b) => a - b);
+  const method = m.draftOrderMethod === 'standings' ? 'Order: projected finish, worst picks first' : m.draftOrderMethod === 'maxpf' ? 'Order: non-playoff teams by projected max PF, then playoff teams' : 'Order: projected max PF, lowest first';
+  return {
+    file: `${String(m.league.name || 'league').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')}-${y}-mock-draft.png`,
+    eyebrow: `${m.league.name} · ${y} rookie draft`,
+    title: `${y} Mock Draft`,
+    subtitle: `${method} · as of ${new Date().toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' })}`,
+    rounds: rounds.map((r) => ({
+      label: `Round ${r}`,
+      picks: picksY.filter((p) => p.round === r).map((p) => {
+        const proj = board && p.overall ? board.players[p.overall - 1] : null;
+        return {
+          pick: p.overall ? `${p.round}.${String(p.slot).padStart(2, '0')}` : roundName(p.round),
+          owner: tname(p.owner), avatar: avatarUrl(team(p.owner)), isMe: p.owner === m.me,
+          via: p.orig !== p.owner ? tname(p.orig) : '',
+          player: proj ? { name: proj.name, pos: proj.pos, school: proj.school || '' } : null,
+        };
+      }),
+    })),
+    notes: [
+      board ? `Prospects are taken straight down ${board.mine ? 'your own board' : board.source}: the player at that overall spot, so it shows who's likely there, not who each manager would pick.` : `No ${y} prospect board yet, so picks show "Best available". Add a board on the Rookie draft page.`,
+      'Slots are projected from the playoff simulation and change week to week until the season ends.',
+    ],
+  };
+}
+
+async function exportMock(el) {
+  if (!S.model) return;
+  const label = el ? el.innerHTML : '';
+  if (el) { el.disabled = true; el.textContent = 'Drawing…'; }
+  try { const spec = mockDraftPoster(); await downloadCanvas(await drawMockDraft(spec), spec.file); } catch (e) { console.error(e); S.error = `Couldn't make the image: ${e.message}`; render(); }
+  finally { if (el) { el.disabled = false; el.innerHTML = label; } }
+}
+
 async function exportPoster(el, build) {
   if (!S.model) return;
   const label = el ? el.innerHTML : '';
@@ -4242,6 +4284,7 @@ const actions = {
   votWhen(el) { S.ui.vot.when = el.dataset.when; render(); },
   exportSummary(el) { return exportPoster(el, tradeSummaryPoster); },
   exportSeason(el) { return exportPoster(el, seasonPoster); },
+  exportMock(el) { return exportMock(el); },
   async saveSettings() {
     const username = ($('#cfg-username') || {}).value || '';
     const leagueId = S.cfg.leagueId || '';
