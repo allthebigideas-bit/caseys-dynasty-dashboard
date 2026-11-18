@@ -1325,3 +1325,12 @@ table.t tr.hl td { background: rgb(var(--gold-rgb) / .12); }
 
 .vdot-btn { all: unset; cursor: pointer; display: inline-flex; padding: 4px; margin: -4px; border-radius: 6px; }
 .vdot-btn:hover { background: rgb(var(--gold-rgb) / .2); }
+
+/* Team ledger */
+.lbridge { display: grid; grid-template-columns: repeat(auto-fit, minmax(118px, 1fr)); gap: 8px; margin: 12px 0 14px; }
+.lstep { border: 1px solid var(--line-2); border-radius: 12px; padding: 10px 12px; text-align: center; background: rgb(var(--accent-rgb) / .05); }
+.lstep.edge { border-color: rgb(var(--gold-rgb) / .7); background: rgb(var(--gold-rgb) / .1); }
+.lstep .lab { font-size: 10.5px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+.lstep.edge .lab { color: var(--gold); }
+.lstep .val { font-size: 22px; font-weight: 900; margin: 2px 0; }
+.ledger-sec { scroll-margin-top: 70px; }
