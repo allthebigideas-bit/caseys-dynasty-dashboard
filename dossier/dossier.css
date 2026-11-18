@@ -1322,3 +1322,6 @@ table.t tr.tot td { border-top: 2px solid var(--line-2); }
 .cell-link:hover, .cell-link:focus-visible { background: rgb(var(--gold-rgb) / .14); outline: none; }
 .cell-link:hover > :first-child, .cell-link:hover { text-decoration: underline dotted; text-underline-offset: 3px; }
 table.t tr.hl td { background: rgb(var(--gold-rgb) / .12); }
+
+.vdot-btn { all: unset; cursor: pointer; display: inline-flex; padding: 4px; margin: -4px; border-radius: 6px; }
+.vdot-btn:hover { background: rgb(var(--gold-rgb) / .2); }
