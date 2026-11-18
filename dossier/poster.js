@@ -127,33 +127,10 @@ function award(ctx, x, y, w, a, img) {
   ctx.fillText(fitText(ctx, a.stat, w - 130), x + 108, y + 92);
 }
 
-/**
- * spec = {
- *   file, title, eyebrow, subtitle,
- *   awards: [{ label, name, stat, avatar, gloom }],
- *   groups: [{ label, cols: [{ label, sub, w, align, key, hero }] }],   // first group should hold rank + name
- *   rows: [{ name, sub, avatar, isMe, cutAfter, cells: { key: { text, color, bold, bar } } }],
- *   notes: [string], footLabel
- * }
- */
-export async function drawPoster(spec) {
-  const W = spec.width || BASE_W;
-  try { await Promise.all([document.fonts.load(font(20, 600)), document.fonts.load(font(20, 800)), document.fonts.load(font(20, 900))]); } catch { /* system font */ }
-  const [hero, bg, crest] = await Promise.all([loadImg('../splash/hero.jpg'), loadImg('../splash/background.jpg'), loadImg('../splash/crest.png')]);
-  const avs = await Promise.all(spec.rows.map((r) => loadRemote(r.avatar)));
-  const awardAvs = await Promise.all((spec.awards || []).map((a) => loadRemote(a.avatar)));
 
-  const ROW = 70, HEAD1 = 40, HEAD2 = 62;
-  const HEADER = 430, AWARDS = (spec.awards || []).length ? 190 : 0;
-  const tableH = HEAD1 + HEAD2 + spec.rows.length * ROW + 24;
-  const notesH = 40 + (spec.notes || []).length * 30;
-  const FOOT = 250;
-  const H = HEADER + AWARDS + tableH + notesH + FOOT;
-
-  const c = document.createElement('canvas');
-  c.width = W; c.height = H;
-  const ctx = c.getContext('2d');
-
+// Shared frame: backdrop, header art with the crest and title ribbon, and the footer art.
+function drawFrame(ctx, W, H, HEADER, FOOT, spec, art) {
+  const { hero, bg, crest } = art;
   // backdrop: deep purple with the wide art faded in at the sides
   ctx.fillStyle = '#14072a'; ctx.fillRect(0, 0, W, H);
   ctx.globalAlpha = 0.28; cover(ctx, bg, 0, HEADER - 40, W, H - HEADER - FOOT + 80, 0.5, 0.35); ctx.globalAlpha = 1;
@@ -179,6 +156,63 @@ export async function drawPoster(spec) {
   ribbon(ctx, cx, 278, spec.title.toUpperCase(), { size: 40 });
   ctx.fillStyle = MUTED; ctx.font = font(19, 500); ctx.textAlign = 'center';
   ctx.fillText(spec.subtitle, cx, 404);
+
+}
+
+function drawFooter(ctx, W, H, FOOT, spec, art) {
+  const { bg } = art;
+  // footer: the slumped players, faded up into the page
+  const fy = H - FOOT;
+  cover(ctx, bg, 0, fy, W, FOOT, 1, 0.9, 1);
+  const fg = ctx.createLinearGradient(0, fy, 0, H);
+  fg.addColorStop(0, 'rgba(20,7,42,1)'); fg.addColorStop(0.3, 'rgba(20,7,42,.35)'); fg.addColorStop(1, 'rgba(20,7,42,.05)');
+  ctx.fillStyle = fg; ctx.fillRect(0, fy, W, FOOT);
+  const fl = ctx.createLinearGradient(0, 0, W, 0);
+  fl.addColorStop(0, 'rgba(20,7,42,.9)'); fl.addColorStop(0.42, 'rgba(20,7,42,.35)'); fl.addColorStop(1, 'rgba(20,7,42,0)');
+  ctx.fillStyle = fl; ctx.fillRect(0, fy, W, FOOT);
+  if (spec.footLabel) {
+    ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+    ctx.fillStyle = BAD; ctx.font = font(15, 800); ctx.fillText(spec.footLabel.title.toUpperCase().split('').join(' '), PAD, H - 120);
+    ctx.fillStyle = TEXT; ctx.font = font(30, 800); ctx.fillText(spec.footLabel.text, PAD, H - 82);
+  }
+  ctx.fillStyle = FAINT; ctx.font = font(15, 600); ctx.textAlign = 'left';
+  ctx.fillText(`Casey's Dynasty Dashboard · ${new Date().toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' })}`, PAD, H - 34);
+
+}
+
+async function loadArt() {
+  try { await Promise.all([document.fonts.load(font(20, 600)), document.fonts.load(font(20, 800)), document.fonts.load(font(20, 900))]); } catch { /* system font */ }
+  const [hero, bg, crest] = await Promise.all([loadImg('../splash/hero.jpg'), loadImg('../splash/background.jpg'), loadImg('../splash/crest.png')]);
+  return { hero, bg, crest };
+}
+
+/**
+ * spec = {
+ *   file, title, eyebrow, subtitle,
+ *   awards: [{ label, name, stat, avatar, gloom }],
+ *   groups: [{ label, cols: [{ label, sub, w, align, key, hero }] }],   // first group should hold rank + name
+ *   rows: [{ name, sub, avatar, isMe, cutAfter, cells: { key: { text, color, bold, bar } } }],
+ *   notes: [string], footLabel
+ * }
+ */
+export async function drawPoster(spec) {
+  const W = spec.width || BASE_W;
+  const art = await loadArt();
+  const avs = await Promise.all(spec.rows.map((r) => loadRemote(r.avatar)));
+  const awardAvs = await Promise.all((spec.awards || []).map((a) => loadRemote(a.avatar)));
+
+  const ROW = 70, HEAD1 = 40, HEAD2 = 62;
+  const HEADER = 430, AWARDS = (spec.awards || []).length ? 190 : 0;
+  const tableH = HEAD1 + HEAD2 + spec.rows.length * ROW + 24;
+  const notesH = 40 + (spec.notes || []).length * 30;
+  const FOOT = 250;
+  const H = HEADER + AWARDS + tableH + notesH + FOOT;
+
+  const c = document.createElement('canvas');
+  c.width = W; c.height = H;
+  const ctx = c.getContext('2d');
+
+  drawFrame(ctx, W, H, HEADER, FOOT, spec, art);
 
   // awards row
   let y = HEADER + 10;
@@ -302,22 +336,7 @@ export async function drawPoster(spec) {
   ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic'; ctx.font = font(16, 500); ctx.fillStyle = MUTED;
   for (const n of spec.notes || []) { ctx.fillText(n, PAD + 6, ny); ny += 30; }
 
-  // footer: the slumped players, faded up into the page
-  const fy = H - FOOT;
-  cover(ctx, bg, 0, fy, W, FOOT, 1, 0.9, 1);
-  const fg = ctx.createLinearGradient(0, fy, 0, H);
-  fg.addColorStop(0, 'rgba(20,7,42,1)'); fg.addColorStop(0.3, 'rgba(20,7,42,.35)'); fg.addColorStop(1, 'rgba(20,7,42,.05)');
-  ctx.fillStyle = fg; ctx.fillRect(0, fy, W, FOOT);
-  const fl = ctx.createLinearGradient(0, 0, W, 0);
-  fl.addColorStop(0, 'rgba(20,7,42,.9)'); fl.addColorStop(0.42, 'rgba(20,7,42,.35)'); fl.addColorStop(1, 'rgba(20,7,42,0)');
-  ctx.fillStyle = fl; ctx.fillRect(0, fy, W, FOOT);
-  if (spec.footLabel) {
-    ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
-    ctx.fillStyle = BAD; ctx.font = font(15, 800); ctx.fillText(spec.footLabel.title.toUpperCase().split('').join(' '), PAD, H - 120);
-    ctx.fillStyle = TEXT; ctx.font = font(30, 800); ctx.fillText(spec.footLabel.text, PAD, H - 82);
-  }
-  ctx.fillStyle = FAINT; ctx.font = font(15, 600); ctx.textAlign = 'left';
-  ctx.fillText(`Casey's Dynasty Dashboard · ${new Date().toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' })}`, PAD, H - 34);
+  drawFooter(ctx, W, H, FOOT, spec, art);
 
   return c;
 }
@@ -328,6 +347,131 @@ export async function downloadPoster(spec) {
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url; a.download = spec.file || 'caseys-dynasty.png';
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 5000);
+  return c;
+}
+
+// ---- mock draft board ------------------------------------------------------------------------
+
+const POS_COLOR = { QB: '#ff6f93', RB: '#43d885', WR: '#5fb0ff', TE: '#ffb44f' };
+
+/**
+ * spec = {
+ *   file, title, eyebrow, subtitle, notes, footLabel,
+ *   rounds: [{ label, picks: [{ pick, owner, avatar, via, isMe, player: { name, pos, school } | null }] }]
+ * }
+ * Rounds sit side by side (up to four per band), each pick a card: pick number,
+ * projected prospect, then the team that owns the pick.
+ */
+export async function drawMockDraft(spec) {
+  const art = await loadArt();
+  const perBand = Math.min(4, spec.rounds.length);
+  const W = perBand >= 4 ? 2400 : perBand === 3 ? 2000 : 1600;
+  const bands = [];
+  for (let i = 0; i < spec.rounds.length; i += perBand) bands.push(spec.rounds.slice(i, i + perBand));
+  const owners = [...new Set(spec.rounds.flatMap((r) => r.picks.map((p) => p.avatar || '')))];
+  const imgs = Object.fromEntries(await Promise.all(owners.map(async (u) => [u, await loadRemote(u)])));
+
+  const CARD = 112, GAP_Y = 12, RHEAD = 74, GAP_X = 28;
+  const bandH = (b) => RHEAD + Math.max(...b.map((r) => r.picks.length)) * (CARD + GAP_Y) + 30;
+  const HEADER = 430, FOOT = 250;
+  const LEGEND = 70;
+  const notesH = 30 + (spec.notes || []).length * 30;
+  const H = HEADER + LEGEND + bands.reduce((s2, b) => s2 + bandH(b) + 24, 0) + notesH + FOOT;
+
+  const c = document.createElement('canvas');
+  c.width = W; c.height = H;
+  const ctx = c.getContext('2d');
+  drawFrame(ctx, W, H, HEADER, FOOT, spec, art);
+
+  // position legend
+  let y = HEADER + 8;
+  ctx.textBaseline = 'middle'; ctx.textAlign = 'left'; ctx.font = font(20, 800);
+  let lx = PAD;
+  for (const [pos, col] of Object.entries(POS_COLOR)) {
+    ctx.fillStyle = col; rr(ctx, lx, y + 14, 58, 32, 8); ctx.fill();
+    ctx.fillStyle = INK; ctx.textAlign = 'center'; ctx.fillText(pos, lx + 29, y + 31);
+    lx += 74;
+  }
+  ctx.textAlign = 'left'; ctx.fillStyle = MUTED; ctx.font = font(19, 600);
+  ctx.fillText('Gold border = your pick   ·   "via" = original owner of a traded pick', lx + 18, y + 31);
+  y += LEGEND;
+
+  for (const band of bands) {
+    const colW = (W - PAD * 2 - GAP_X * (band.length - 1)) / band.length;
+    const bh = bandH(band);
+    band.forEach((round, ri) => {
+      const x = PAD + ri * (colW + GAP_X);
+      // column panel
+      ctx.fillStyle = 'rgba(29,13,61,.9)'; rr(ctx, x, y, colW, bh, 18); ctx.fill();
+      ctx.strokeStyle = 'rgba(242,182,50,.4)'; ctx.lineWidth = 2; rr(ctx, x, y, colW, bh, 18); ctx.stroke();
+      // round header
+      ctx.fillStyle = goldGrad(ctx, y, RHEAD - 14); rr(ctx, x + 14, y + 14, colW - 28, RHEAD - 24, 12); ctx.fill();
+      ctx.fillStyle = INK; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.font = font(28, 900);
+      ctx.fillText(round.label.toUpperCase().split('').join(' '), x + colW / 2, y + 14 + (RHEAD - 24) / 2 + 1);
+      round.picks.forEach((pk, i) => {
+        const cy = y + RHEAD + 4 + i * (CARD + GAP_Y), cx2 = x + 14, cw = colW - 28;
+        ctx.fillStyle = pk.isMe ? 'rgba(242,182,50,.16)' : 'rgba(255,255,255,.045)';
+        rr(ctx, cx2, cy, cw, CARD, 14); ctx.fill();
+        ctx.strokeStyle = pk.isMe ? GOLD : 'rgba(196,179,230,.18)'; ctx.lineWidth = pk.isMe ? 3 : 1.5;
+        rr(ctx, cx2, cy, cw, CARD, 14); ctx.stroke();
+        // pick number
+        ctx.fillStyle = pk.isMe ? GOLD2 : TEXT; ctx.font = font(34, 900); ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+        ctx.fillText(pk.pick, cx2 + 20, cy + CARD / 2);
+        const tx = cx2 + 128, tw = cw - 128 - 18;
+        // prospect line
+        const pl = pk.player;
+        if (pl) {
+          const chipW = 50;
+          ctx.fillStyle = POS_COLOR[pl.pos] || FAINT; rr(ctx, tx, cy + 16, chipW, 30, 7); ctx.fill();
+          ctx.fillStyle = INK; ctx.font = font(17, 900); ctx.textAlign = 'center';
+          ctx.fillText(pl.pos || '?', tx + chipW / 2, cy + 32);
+          ctx.textAlign = 'left'; ctx.fillStyle = TEXT; ctx.font = font(27, 800);
+          const nameW = tw - chipW - 14;
+          const nm = fitText(ctx, pl.name, nameW);
+          ctx.fillText(nm, tx + chipW + 12, cy + 32);
+          if (pl.school) {
+            const used = ctx.measureText(nm).width;
+            ctx.font = font(17, 500); ctx.fillStyle = FAINT;
+            const room = nameW - used - 14;
+            if (room > 60) ctx.fillText(fitText(ctx, pl.school, room), tx + chipW + 12 + used + 12, cy + 34);
+          }
+        } else {
+          ctx.fillStyle = FAINT; ctx.font = font(24, 700); ctx.textAlign = 'left';
+          ctx.fillText('Best available', tx, cy + 32);
+        }
+        // owner line
+        const ad = 36, oy = cy + CARD - 18 - ad / 2 - 8;
+        avatar(ctx, imgs[pk.avatar || ''], pk.owner, tx, oy, ad);
+        ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+        ctx.fillStyle = pk.isMe ? GOLD2 : MUTED; ctx.font = font(21, 700);
+        const on = fitText(ctx, pk.owner, tw - ad - 12);
+        ctx.fillText(on, tx + ad + 12, oy + ad / 2 + 1);
+        if (pk.via) {
+          const ow = ctx.measureText(on).width;
+          ctx.font = font(17, 600); ctx.fillStyle = FAINT;
+          const room = tw - ad - 12 - ow - 12;
+          if (room > 50) ctx.fillText(fitText(ctx, `via ${pk.via}`, room), tx + ad + 12 + ow + 12, oy + ad / 2 + 2);
+        }
+      });
+    });
+    y += bh + 24;
+  }
+
+  let ny = y + 16;
+  ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic'; ctx.font = font(18, 500); ctx.fillStyle = MUTED;
+  for (const n of spec.notes || []) { ctx.fillText(n, PAD + 6, ny); ny += 30; }
+
+  drawFooter(ctx, W, H, FOOT, spec, art);
+  return c;
+}
+
+export async function downloadCanvas(c, file) {
+  const blob = await new Promise((res) => c.toBlob(res, 'image/png'));
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = file || 'caseys-dynasty.png';
   document.body.appendChild(a); a.click(); a.remove();
   setTimeout(() => URL.revokeObjectURL(url), 5000);
   return c;
