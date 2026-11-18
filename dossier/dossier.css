@@ -1012,6 +1012,13 @@ body::before {
 .pa-trophy { background-image: url("../splash/hero.jpg"); background-size: 140% auto; background-position: 30% 4%; }
 .pa-winners { background-image: url("../splash/hero.jpg"); background-size: 125% auto; background-position: 0% 24%; }
 .pa-qb { background-image: url("../splash/hero.jpg"); background-size: 150% auto; background-position: 62% 22%; }
+.pa-b1, .pa-b2, .pa-b3, .pa-b4, .pa-b5 { background-size: 100% auto; background-position: 50% 31%; }
+.pa-b1 { background-image: url("../splash/banner-1.jpg"); }
+.pa-b2 { background-image: url("../splash/banner-2.jpg"); }
+.pa-b3 { background-image: url("../splash/banner-3.jpg"); }
+.pa-b4 { background-image: url("../splash/banner-4.jpg"); }
+.pa-b5 { background-image: url("../splash/banner-5.jpg"); }
+@media (max-width: 760px) { .pa-b1, .pa-b2, .pa-b3, .pa-b4, .pa-b5 { background-size: cover; background-position: 50% 30%; } }
 .pa-board { background-image: url("../splash/background.jpg"); background-size: 170% auto; background-position: 100% 46%; }
 .pa-duds { background-image: url("../splash/background.jpg"); background-size: 125% auto; background-position: 100% 80%; }
 .pa-grades { background-image: url("../splash/background.jpg"); background-size: 190% auto; background-position: 86% 86%; }
