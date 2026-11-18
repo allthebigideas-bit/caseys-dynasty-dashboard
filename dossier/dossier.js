@@ -236,20 +236,20 @@ function applyTheme(t) {
 
 // Page art headers: which crop of the league art goes on which page.
 const PAGE_ART = {
-  valuetime: ['pa-winners', 'Winners and losers', 'Value over time'],
+  valuetime: ['pa-b4', 'Winners and losers', 'Value over time'],
   season: ['pa-trophy', 'The race for the trophy', 'Season table'],
-  summary: ['pa-winners', 'Who won the trade', 'Trade summary'],
-  trades: ['pa-winners', 'Deals and offers', 'Trades'],
-  managers: ['pa-qb', 'Know your rivals', 'Managers'],
+  summary: ['pa-b2', 'Who won the trade', 'Trade summary'],
+  trades: ['pa-b1', 'Deals and offers', 'Trades'],
+  managers: ['pa-b3', 'Know your rivals', 'Managers'],
   waivers: ['pa-duds', 'Overnight claims', 'Waivers', 'flip'],
   draft: ['pa-board', 'Next year starts now', 'Rookie draft', 'flip'],
-  startsit: ['pa-qb', 'This week', 'Start / Sit'],
-  rising: ['pa-winners', 'Coming into their prime', 'Rising players'],
+  startsit: ['pa-b5', 'This week', 'Start / Sit'],
+  rising: ['pa-b1', 'Coming into their prime', 'Rising players'],
   positions: ['pa-grades', 'Room by room', 'Positional ranks', 'flip'],
-  demand: ['pa-qb', 'Who wants your guys', 'Demand'],
+  demand: ['pa-b2', 'Who wants your guys', 'Demand'],
   block: ['pa-duds', 'Up for grabs', 'My trade block', 'flip'],
   picks: ['pa-board', 'Future capital', 'Picks', 'flip'],
-  market: ['pa-winners', 'Risers and fallers', 'Market'],
+  market: ['pa-b5', 'Risers and fallers', 'Market'],
 };
 function pageArt(page) {
   const a = PAGE_ART[page];
@@ -3594,6 +3594,7 @@ function tradeSummaryPoster() {
     worst && worst !== best && { label: 'Fleeced', gloom: true, name: worst.name, avatar: avatarUrl(worst.t), stat: `${sgn(worst.allNow, k)} net value now` },
   ].filter(Boolean);
   return {
+    banner: 2,
     file: `caseys-trade-summary-${fileStamp()}.png`,
     title: 'Trade summary', eyebrow: leagueName(),
     subtitle: `Who won the trades · week ${m.league.week}, ${m.league.season}`,
@@ -3734,6 +3735,7 @@ function mockDraftPoster() {
   const rounds = [...new Set(picksY.map((p) => p.round))].sort((a, b) => a - b);
   const method = m.draftOrderMethod === 'standings' ? 'Order: projected finish, worst picks first' : m.draftOrderMethod === 'maxpf' ? 'Order: non-playoff teams by projected max PF, then playoff teams' : 'Order: projected max PF, lowest first';
   return {
+    banner: 4,
     file: `${String(m.league.name || 'league').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')}-${y}-mock-draft.png`,
     eyebrow: `${m.league.name} · ${y} rookie draft`,
     title: `${y} Mock Draft`,

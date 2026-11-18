@@ -139,9 +139,12 @@ function drawFrame(ctx, W, H, HEADER, FOOT, spec, art) {
   ctx.fillStyle = mid; ctx.fillRect(0, HEADER - 40, W, H - HEADER - FOOT + 80);
 
   // header art: the celebrating players
-  cover(ctx, hero, 0, 0, W, HEADER, 0.0, 0.12, 1.0);
+  const banner = spec.banner && art.banners ? art.banners[spec.banner] : null;
+  if (banner) cover(ctx, banner, 0, 0, Math.round(W * 0.7), HEADER, 0.5, 0.2, 1.0);
+  else cover(ctx, hero, 0, 0, W, HEADER, 0.0, 0.12, 1.0);
   const hg = ctx.createLinearGradient(0, 0, W, 0);
-  hg.addColorStop(0, 'rgba(20,7,42,.05)'); hg.addColorStop(0.42, 'rgba(20,7,42,.45)'); hg.addColorStop(0.62, 'rgba(20,7,42,.92)'); hg.addColorStop(1, 'rgba(20,7,42,.98)');
+  if (banner) { hg.addColorStop(0, 'rgba(20,7,42,0)'); hg.addColorStop(0.5, 'rgba(20,7,42,.1)'); hg.addColorStop(0.69, 'rgba(20,7,42,.96)'); hg.addColorStop(1, 'rgba(20,7,42,1)'); }
+  else { hg.addColorStop(0, 'rgba(20,7,42,.05)'); hg.addColorStop(0.42, 'rgba(20,7,42,.45)'); hg.addColorStop(0.62, 'rgba(20,7,42,.92)'); hg.addColorStop(1, 'rgba(20,7,42,.98)'); }
   ctx.fillStyle = hg; ctx.fillRect(0, 0, W, HEADER);
   const hb = ctx.createLinearGradient(0, HEADER - 140, 0, HEADER);
   hb.addColorStop(0, 'rgba(20,7,42,0)'); hb.addColorStop(1, 'rgba(20,7,42,1)');
@@ -183,7 +186,8 @@ function drawFooter(ctx, W, H, FOOT, spec, art) {
 async function loadArt() {
   try { await Promise.all([document.fonts.load(font(20, 600)), document.fonts.load(font(20, 800)), document.fonts.load(font(20, 900))]); } catch { /* system font */ }
   const [hero, bg, crest] = await Promise.all([loadImg('../splash/hero.jpg'), loadImg('../splash/background.jpg'), loadImg('../splash/crest.png')]);
-  return { hero, bg, crest };
+  const banners = Object.fromEntries(await Promise.all([1, 2, 3, 4, 5].map(async (i) => [i, await loadImg(`../splash/banner-${i}.jpg`)])));
+  return { hero, bg, crest, banners };
 }
 
 /**
