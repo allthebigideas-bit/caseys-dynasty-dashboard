@@ -341,7 +341,10 @@ export async function drawPoster(spec) {
   // rows
   let ry = y + HEAD1 + HEAD2 + 8;
   spec.rows.forEach((r, i) => {
-    if (i % 2 === 1) { ctx.fillStyle = 'rgba(255,255,255,.035)'; ctx.fillRect(tx + 18, ry, tw - 36, ROW); }
+    if (r.total) {
+      ctx.fillStyle = 'rgba(242,182,50,.08)'; ctx.fillRect(tx + 18, ry, tw - 36, ROW);
+      ctx.strokeStyle = 'rgba(242,182,50,.7)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(tx + 18, ry); ctx.lineTo(tx + tw - 18, ry); ctx.stroke();
+    } else if (i % 2 === 1) { ctx.fillStyle = 'rgba(255,255,255,.035)'; ctx.fillRect(tx + 18, ry, tw - 36, ROW); }
     if (r.isMe) {
       ctx.fillStyle = 'rgba(242,182,50,.10)'; ctx.fillRect(tx + 18, ry, tw - 36, ROW);
       ctx.fillStyle = GOLD; ctx.fillRect(tx + 18, ry + 6, 5, ROW - 12);
@@ -349,6 +352,12 @@ export async function drawPoster(spec) {
     for (const col of cols) {
       const al = col.align || 'right';
       const mid = ry + ROW / 2;
+      if (col.key === '#' && r.total) continue;
+      if (col.key === 'name' && r.total) {
+        ctx.textAlign = 'left'; ctx.textBaseline = 'middle'; ctx.fillStyle = GOLD2; ctx.font = font(21, 900);
+        ctx.fillText(fitText(ctx, r.name, col.width - 20), col.x + 10, mid + 1);
+        continue;
+      }
       if (col.key === '#') {
         const rank = r.rank ?? i + 1, d = 40, bx = col.x + col.width / 2 - d / 2;
         ctx.beginPath(); ctx.arc(bx + d / 2, mid, d / 2, 0, Math.PI * 2);
