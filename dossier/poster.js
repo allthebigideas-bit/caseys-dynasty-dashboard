@@ -185,7 +185,7 @@ function drawFooter(ctx, W, H, FOOT, spec, art) {
 
 async function loadArt() {
   try { await Promise.all([document.fonts.load(font(20, 600)), document.fonts.load(font(20, 800)), document.fonts.load(font(20, 900))]); } catch { /* system font */ }
-  const [hero, bg, crest] = await Promise.all([loadImg('../splash/hero.jpg'), loadImg('../splash/background.jpg'), loadImg('../splash/crest.png')]);
+  const [hero, bg, crest] = await Promise.all([loadImg('../splash/hero.jpg'), loadImg('../splash/background.jpg'), loadImg(globalThis.CDD_CREST || '../splash/crest.png')]);
   const banners = Object.fromEntries(await Promise.all([1, 2, 3, 4, 5].map(async (i) => [i, await loadImg(`../splash/banner-${i}.jpg`)])));
   return { hero, bg, crest, banners };
 }

@@ -1334,3 +1334,10 @@ table.t tr.hl td { background: rgb(var(--gold-rgb) / .12); }
 .lstep.edge .lab { color: var(--gold); }
 .lstep .val { font-size: 22px; font-weight: 900; margin: 2px 0; }
 .ledger-sec { scroll-margin-top: 70px; }
+
+/* right-click menu on the sidebar logo */
+.ctx-menu { position: fixed; z-index: 1000; min-width: 190px; padding: 6px; border-radius: 12px; background: var(--card); border: 1px solid var(--line-2); box-shadow: 0 12px 32px rgb(0 0 0 / .35); display: grid; gap: 2px; }
+.ctx-menu button { all: unset; display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-radius: 8px; cursor: pointer; font-weight: 600; color: var(--text); font-size: 13px; }
+.ctx-menu button:hover, .ctx-menu button:focus-visible { background: rgb(var(--gold-rgb) / .16); }
+.ctx-menu svg { width: 15px; height: 15px; }
+.logo.big img { object-fit: contain; max-height: 190px; }
