@@ -759,6 +759,8 @@ function summaryRows() {
       curThen: net[t.rid] ? net[t.rid].curThen : 0, curNow: net[t.rid] ? net[t.rid].curNow : 0,
       oldThen: net[t.rid] ? net[t.rid].oldThen : 0, oldNow: net[t.rid] ? net[t.rid].oldNow : 0,
       allNow: net[t.rid] ? net[t.rid].curNow + net[t.rid].oldNow : 0,
+      allThen: net[t.rid] ? net[t.rid].curThen + net[t.rid].oldThen : 0,
+      allTrades: (lt[t.rid] || 0) + (ht[t.rid] || 0),
       curPts: net[t.rid] ? net[t.rid].curPts : 0, oldPts: net[t.rid] ? net[t.rid].oldPts : 0,
       allPts: net[t.rid] ? net[t.rid].curPts + net[t.rid].oldPts : 0,
       allThen: net[t.rid] ? net[t.rid].curThen + net[t.rid].oldThen : 0,
@@ -851,7 +853,7 @@ function viewValueTime() {
   const tot = (key) => m.teams.reduce((s2, t) => s2 + V.rows[t.rid][key], 0);
   const tc = VT.tradeCounts || { cur: {}, old: {} };
   const allOf = (rid) => (from === 'startup' ? (tc.cur[rid] || 0) + (tc.old[rid] || 0) : tc.cur[rid] || 0);
-  const go = (key, rid, inner) => (rid == null ? inner : `<button class="cell-link" data-action="${key === 'trades' ? 'votTrades' : 'votDetail'}" data-rid="${rid}" data-kind="${key === 'added' || key === 'lost' ? 'waivers' : key === 'residual' ? 'appr' : key}" title="${key === 'trades' ? 'Open Trade summary' : 'Show every player behind this number'}">${inner}</button>`);
+  const go = (key, rid, inner) => (rid == null ? inner : `<button class="cell-link" data-action="votDetail" data-rid="${rid}" data-kind="${key === 'added' || key === 'lost' ? 'waivers' : key === 'residual' ? 'appr' : key}" title="Show every trade or player behind this number">${inner}</button>`);
   const cell = (key, v, r, t) => {
     if (key === 'start' || key === 'end') return `<td class="num"><b>${k(v)}</b></td>`;
     const rid = t ? t.rid : null;
@@ -872,7 +874,7 @@ function viewValueTime() {
       <tr class="tot"><td><b>League</b></td>${bridgeCols.map(([key]) => cell(key, tot(key))).join('')}</tr></tbody></table></div>
     <div class="faint small" style="margin:8px 0 0;display:grid;gap:4px">
       <div>${startName} + Trades${fromSeason ? ' + Rookie draft' : ''} + Waivers added − Value lost + Appreciation = Today.</div>
-      <div><b>Trades</b> are Trade summary's "Net then" figures${from === 'startup' ? ', this season plus earlier seasons' : ' for this season'}: what each trade was worth the week it happened, with KTC's package adjustment. Click one to open Trade summary.${anyEarlier ? ` "3 of 8" means 3 of the team's 8 trades${from === 'startup' ? '' : ' this season'} fall inside this window.` : ''} Anything a traded-for player gained or lost since shows up in Appreciation.</div>
+      <div><b>Trades</b> are Trade summary's "Net then" figures${from === 'startup' ? ', this season plus earlier seasons' : ' for this season'}: what each trade was worth the week it happened, with KTC's package adjustment. Click one to see each trade next to Trade summary's figures.${anyEarlier ? ` "3 of 8" means 3 of the team's 8 trades${from === 'startup' ? '' : ' this season'} fall inside this window.` : ''} Anything a traded-for player gained or lost since shows up in Appreciation.</div>
       <div><b>Waivers added</b> and <b>Value lost</b> are what players were worth the week they were added or dropped. <b>Appreciation</b> is every asset's change while the team held it. Click any of those numbers for the player-by-player list.</div>
       ${Object.keys(V.mismatch).length ? `<div>Some moves are missing from Sleeper's list for ${Object.keys(V.mismatch).map((rid) => esc(tname(Number(rid)))).join(', ')}, so their Appreciation also carries those players.</div>` : ''}
     </div></div>`;
@@ -890,9 +892,22 @@ function viewValueTime() {
     };
     const nowOf = (key) => (key.startsWith('p:') ? (pval(key.slice(2)).v || 0) : null);
     const dd = (ts) => esc(dstrY(ts));
-    const tabs = [['waivers', 'Waivers'], ['appr', 'Appreciation'], ...(fromSeason ? [['draft', 'Rookie drafts']] : [])];
+    const tabs = [['trades', 'Trades'], ['waivers', 'Waivers'], ...(fromSeason ? [['draft', 'Rookie drafts']] : []), ['appr', 'Appreciation']];
     let body = '';
-    if (detail.kind === 'waivers') {
+    if (detail.kind === 'trades') {
+      const byId = new Map([...m.leagueTrades.map((nt) => [nt.id, { nt, src: 'cur' }]), ...m.histTrades.map((nt) => [nt.id, { nt, src: 'old' }])]);
+      const inWin = new Set(L2.trades.map((x) => x.id));
+      const mine = [...byId.values()].filter(({ nt }) => nt.rids.includes(detail.rid)).sort((a, b) => (b.nt.created || 0) - (a.nt.created || 0));
+      const netOf = (g) => (g && g[detail.rid] ? g[detail.rid].got - g[detail.rid].gave : null);
+      const list = (keys) => keys.map((x) => nameOfKey(x.key)).join(', ') || '—';
+      const sumBy = (src, f) => mine.filter((x) => x.src === src).reduce((a, x) => a + (f(x.nt) || 0), 0);
+      const winTot = L2.trades.reduce((a, x) => a + x.net, 0);
+      body = `<div class="scroll"><table class="t"><thead><tr><th>Date</th><th>Season</th><th>With</th><th>Got</th><th>Gave</th><th class="num">Net then</th><th class="num">Net now</th></tr></thead><tbody>${mine.map(({ nt, src }) => { const l = L2.trades.find((x) => x.id === nt.id); const sd = nt.sides[detail.rid]; return `<tr class="${inWin.has(nt.id) ? '' : 'faint'}"><td class="muted">${nt.created ? dd(nt.created) : '—'}</td><td class="muted small">${src === 'cur' ? 'This season' : 'Earlier'}${inWin.has(nt.id) ? '' : '<br>before this window'}</td><td>${nt.rids.filter((x) => x !== detail.rid).map((x) => esc(tname(x))).join(', ')}</td><td class="small">${l ? list(l.inn) : list([...sd.inP.map((x) => ({ key: `p:${x}` })), ...sd.inK.map((x) => ({ key: x.key }))])}</td><td class="small">${l ? list(l.out) : list([...sd.outP.map((x) => ({ key: `p:${x}` })), ...sd.outK.map((x) => ({ key: x.key }))])}</td><td class="num ${cls(netOf(nt.deal) || 0)}">${netOf(nt.deal) == null ? '—' : sgnK(netOf(nt.deal))}</td><td class="num muted">${netOf(nt.now) == null ? '—' : sgnK(netOf(nt.now))}</td></tr>`; }).join('') || '<tr><td colspan="7" class="muted">No trades.</td></tr>'}
+        <tr class="tot"><td colspan="5">This season: ${mine.filter((x) => x.src === 'cur').length} trades (Trade summary, "This season")</td><td class="num">${sgnK(sumBy('cur', (nt) => netOf(nt.deal)))}</td><td class="num muted">${sgnK(sumBy('cur', (nt) => netOf(nt.now)))}</td></tr>
+        <tr class="tot"><td colspan="5">Earlier seasons: ${mine.filter((x) => x.src === 'old').length} trades (Trade summary, "Earlier seasons")</td><td class="num">${sgnK(sumBy('old', (nt) => netOf(nt.deal)))}</td><td class="num muted">${sgnK(sumBy('old', (nt) => netOf(nt.now)))}</td></tr>
+        <tr class="tot"><td colspan="5"><b>In this window: ${L2.trades.length} trades</b> (the Trades column)</td><td class="num"><b>${sgnK(winTot)}</b></td><td></td></tr></tbody></table></div>
+        <p class="faint small" style="margin:8px 0 0">"Net then" is the trade valued the week it happened, the same number as Trade summary's "Net then". "Net now" is the same assets at today's values; the difference is how the players and picks have moved since, and it lands in Appreciation here. <button class="link" data-action="votTrades" data-rid="${detail.rid}">Open Trade summary</button></p>`;
+    } else if (detail.kind === 'waivers') {
       const ev = [...L2.adds.map((x) => ({ ...x, kind: 'Added' })), ...L2.drops.map((x) => ({ ...x, kind: 'Dropped' }))].sort((a, b) => b.at - a.at);
       body = `<div class="scroll"><table class="t"><thead><tr><th>Date</th><th>Move</th><th>Player</th><th class="num">Value that week</th><th class="num">Value today</th></tr></thead><tbody>${ev.map((x) => `<tr><td class="muted">${dd(x.at)}</td><td><span class="pill ${x.kind === 'Added' ? 'good' : 'sell'}">${x.kind}</span></td><td>${nameOfKey(x.key)} ${posTag(P(x.key.slice(2)).pos)}</td><td class="num ${x.kind === 'Added' ? 'up' : 'down'}">${x.kind === 'Added' ? '+' : '−'}${k(x.v)}</td><td class="num muted">${k(nowOf(x.key) || 0)}</td></tr>`).join('') || '<tr><td colspan="5" class="muted">No waiver moves in this window.</td></tr>'}
         <tr class="tot"><td colspan="3"><b>Waivers added</b> · ${L2.adds.length} adds</td><td class="num up"><b>+${k(r.added)}</b></td><td></td></tr>
@@ -983,7 +998,9 @@ function viewSummary() {
       { h: th('oldPts', 'Pts +/−', 'num', 'Starter points from traded players since each trade, through today'), td: (r) => `<td class="num">${r.histTrades ? ptsCell(r.oldPts) : faint}</td>` },
     ] },
     { label: 'All', cols: [
-      { h: th('allNow', 'Net now', 'num grp', "All seasons, today's values"), td: (r) => `<td class="num grp"><b>${r.trades + r.histTrades ? netCell(r.allNow) : faint}</b></td>` },
+      { h: th('allTrades', 'Trades', 'num grp', 'All seasons'), td: (r) => `<td class="num grp">${r.allTrades}</td>` },
+      { h: th('allThen', 'Net then', 'num', 'All seasons, values from the week of each trade. This is the Trades number on Value over time.'), td: (r) => `<td class="num">${r.trades + r.histTrades ? netCell(r.allThen) : faint}</td>` },
+      { h: th('allNow', 'Net now', 'num', "All seasons, today's values"), td: (r) => `<td class="num"><b>${r.trades + r.histTrades ? netCell(r.allNow) : faint}</b></td>` },
       { h: th('allPts', 'Pts +/−', 'num', 'All seasons: starter points gained minus lost through trades'), td: (r) => `<td class="num"><b>${r.trades + r.histTrades ? ptsCell(r.allPts) : faint}</b></td>` },
     ] },
     { label: 'Offers with you', cols: [
