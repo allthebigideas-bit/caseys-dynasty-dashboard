@@ -173,6 +173,16 @@ The sidebar on the left has every page. The top bar has search (players and mana
   - **Who drafts well in this league,** and every past rookie draft with what each pick became.
   - **Prospect board:** FantasyPros dynasty rookie rankings when they cover next year's class. Otherwise, paste any ranking list. You can star your guys.
 
+## What changed in 2.30.0
+
+Player cards get two new sections:
+
+- **Season stats:** games, points and points per game in this league's scoring; a position-aware stat line (QB: completions, passing yards, TD, INT, rushing yards; RB/WR/TE: targets, catches, receiving yards, carries, rushing yards, TD); snap share; and a week-by-week points chart.
+- **Market:**
+  - % rostered across the Sleeper leagues your league-mates play in, for dynasty leagues and for all leagues. This fills in after the next daily scan, or straight away with Settings → Rescan other leagues.
+  - Sleeper-wide adds, drops and net for the last 24 hours and 7 days.
+  - Every add, drop and waiver claim (with FAAB bid) for him in this league.
+
 ## What changed in 2.29.2
 
 - **Rookie draft hit rates were missing whole classes.** DynastyProcess left `draft_year` as "NA" for that year's rookies in its summer 2023 snapshots (and the 2025 and 2026 ones), so the 2023 class (Bijan Robinson, Jahmyr Gibbs, Jaxon Smith-Njigba, Sam LaPorta, Dalton Kincaid) silently dropped out of "What each slot has produced" and the rounds 1-2 tiles, and the 2025-26 classes out of the position-mix chart. Missing draft years now come from today's file. With 1QB values: TE 56% of 9 (was 60% of 5), QB 43% of 14, RB 29% of 38, WR 32% of 59; 1.01-1.03 80% of 15 (was 75% of 12).
