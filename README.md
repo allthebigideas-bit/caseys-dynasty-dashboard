@@ -174,6 +174,10 @@ The sidebar on the left has every page. The top bar has search (players and mana
   - **Who drafts well in this league,** and every past rookie draft with what each pick became.
   - **Prospect board:** FantasyPros dynasty rookie rankings when they cover next year's class. Otherwise, paste any ranking list. You can star your guys.
 
+## What changed in 2.36.0
+- **Trades audit.** Click a team's Trades number on Value over time to list every trade it made: date, season, partner, what it got and gave, and Trade summary's "Net then" and "Net now" for each, with subtotals that match Trade summary's "This season" and "Earlier seasons" columns. Trades before the chosen window are listed in grey.
+- **Trade summary** gets all-seasons **Trades** and **Net then** columns next to all-seasons Net now. "Net then", all seasons, is the number in Value over time's Trades column.
+
 ## What changed in 2.35.0
 - **Value over time goes back to the startup draft.** A new "Since the startup draft" view, now the default, starts from the rosters right after the league's first draft and replays every trade, waiver move and rookie draft since, across seasons. "This season" and "Since this year's rookie draft" are still there.
 - **Trades match Trade summary.** The Trades column now uses Trade summary's own "Net then" figures, KTC package adjustment included. The count covers the same trades: this season, plus earlier seasons in the startup view. Click a team's Trades number to open Trade summary with that manager's row picked out.
