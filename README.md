@@ -174,6 +174,9 @@ The sidebar on the left has every page. The top bar has search (players and mana
   - **Who drafts well in this league,** and every past rookie draft with what each pick became.
   - **Prospect board:** FantasyPros dynasty rookie rankings when they cover next year's class. Otherwise, paste any ranking list. You can star your guys.
 
+## What changed in 2.40.0
+- **Choose KTC's value source.** Trade summary, Value over time and Team ledger now have a Crowdsourced / Crowd + Trades / Tradesourced switch, matching KeepTradeCut's own setting. It changes every KTC value the dashboard uses (team values, trade grades, the scale for historical values) and is remembered. Exports note which source they used. KTC's other sources load on the next sync.
+
 ## What changed in 2.39.0
 - **Team ledger page** (under Value over time in the sidebar). Pick a team to see everything at once:
   - the bridge from the starting value to today;

@@ -4,7 +4,7 @@ import { createSync, NEED_TEAM } from '../lib/sync.js';
 import { networkSleeper } from '../lib/sleeper-port.js';
 import { buildModel, roundName, ordinal, dateStr, fmtK, dur } from '../lib/intel.js';
 import { ktcVerdict, fcAdjustment, letterGrade, gainPct } from '../lib/ktcmath.js';
-import { playerValue } from '../lib/values.js';
+import { playerValue, withKtcSource, KTC_SOURCES } from '../lib/values.js';
 import { scoreLine, starterSlots, bestLineup } from '../lib/startsit.js';
 import { DEFAULT_PLAN } from '../lib/engine.js';
 import { fcTrades } from '../lib/fctrades.js';
@@ -79,12 +79,13 @@ const KEYS = ['dossier:weekly', 'blockExtra', 'ui:neutral', 'dossier:draft', 'dr
 async function load() {
   const r = await chrome.storage.local.get(KEYS);
   S.raw = r['dossier:raw'] || null;
-  S.book = r['dossier:book'] || null;
+  S.bookRaw = r['dossier:book'] || null;
   S.aux = r['dossier:aux'] || { fpBySid: {}, proj: {}, sidToFp: {} };
   S.dict = (r.sleeperPlayers2 && r.sleeperPlayers2.map) || {};
   S.snaps = r.tradeSnaps || {};
   S.vhist = r.valueHistory || {};
   S.cfg = r.dossierSettings || { username: '', leagueId: '', strategy: 'auto', lastSeen: 0 };
+  S.book = withKtcSource(S.bookRaw, S.cfg.ktcSource);
   S.feed = r['alerts:feed'] || [];
   S.lastCheck = r['alerts:lastCheck'] || null;
   S.auth = (r.settings && r.settings.sleeper) || null;
@@ -904,7 +905,7 @@ function viewValueTime() {
     <div class="card">${toggles}<div class="pbars" style="margin-top:14px">${bars}</div>${posTable}
     <p class="faint small" style="margin:8px 0 0">Kickers and defenses aren't counted. Small numbers are each team's league rank at that position.</p></div>`;
 
-  return `<div class="sec-h"><h2>Value over time</h2><span class="muted small">${from === 'startup' ? `From the startup draft (${esc(dstrY(V.start))}) to today` : from === 'season' ? `From the start of the league season (${esc(dstrY(V.start))}) to today` : `From this season's rookie draft (${esc(dstrY(V.start))}) to today`}</span></div>${chart}${bridge}${posCard}`;
+  return `<div class="sec-h"><h2>Value over time</h2><span class="row" style="gap:10px">${ktcSourceSeg()}</span></div><div class="row" style="margin:-6px 0 12px"><span class="muted small">${from === 'startup' ? `From the startup draft (${esc(dstrY(V.start))}) to today` : from === 'season' ? `From the start of the league season (${esc(dstrY(V.start))}) to today` : `From this season's rookie draft (${esc(dstrY(V.start))}) to today`}</span></div>${chart}${bridge}${posCard}`;
 }
 
 // ---- team ledger: one team's full accounting, from Value over time -------------------------
@@ -1014,7 +1015,15 @@ function viewLedger(ridArg) {
     ${bridgeHtml}
     ${svg}
     <div class="row small" style="gap:14px;margin-top:4px"><span><i class="vdot" style="background:#f2b632"></i> ${esc(t.name)}</span><span class="muted">- - League average</span><span style="flex:1"></span>${tabs.map(([k2, l]) => `<a class="link" href="#ledger/${detail.rid}" data-action="ledgerJump" data-kind="${k2}">${l}</a>`).join('')}</div></div>`;
-  return `<div class="sec-h"><h2>Team ledger</h2><span class="muted small">${esc(startName)} (${esc(dstrY(V.start))}) to today · <a class="link" href="#valuetime">Value over time</a></span></div>${head}${sections.join('')}`;
+  return `<div class="sec-h"><h2>Team ledger</h2><span class="row" style="gap:10px">${ktcSourceSeg()}</span></div><div class="row" style="margin:-6px 0 12px"><span class="muted small">${esc(startName)} (${esc(dstrY(V.start))}) to today · <a class="link" href="#valuetime">Value over time</a></span></div>${head}${sections.join('')}`;
+}
+
+// KTC value source switch (Crowdsourced / Crowd + Trades / Tradesourced), shared by the trade and value pages.
+function ktcSourceSeg() {
+  const has = !!(S.bookRaw && S.bookRaw.ktcAlts);
+  const cur = has && S.cfg.ktcSource && KTC_SOURCES[S.cfg.ktcSource] ? S.cfg.ktcSource : 'crowd';
+  if (!has) return `<span class="faint small" title="Click Sync now to load KTC's Tradesourced and Crowd + Trades values">KTC: Crowdsourced</span>`;
+  return `<span class="tseg2" title="KeepTradeCut value source">${['crowd', 'blend', 'trade'].map((k2) => `<button class="${cur === k2 ? 'on' : ''}" data-action="ktcSource" data-src="${k2}">${KTC_SOURCES[k2]}</button>`).join('')}</span>`;
 }
 
 function viewSummary() {
@@ -1104,7 +1113,7 @@ function viewSummary() {
   const others = rows.filter((r) => !r.isMe);
   const tot = (key) => others.reduce((s2, r) => s2 + (r[key] || 0), 0);
   const asks = others.filter((r) => r.ask != null);
-  return myOffersCard(m) + `<div class="sec-h" style="margin-top:18px"><h2>Manager summary</h2><span class="row" style="gap:10px"><button class="btn sm primary" data-action="exportSummary">${icon('download')}Export PNG</button><button class="toggle ${S.ui.neutral ? 'on' : ''}" data-action="toggleNeutral" title="Hide postures, ease ratings, avoid tags and your notes so you can show this screen to others">Share view <span class="sw"></span></button></span></div><div class="row" style="margin:-6px 0 12px"><span class="muted small">Click a column to sort. Offer columns only count offers between you and that manager: Sleeper hides other managers' offers to each other.</span></div>
+  return myOffersCard(m) + `<div class="sec-h" style="margin-top:18px"><h2>Manager summary</h2><span class="row" style="gap:10px">${ktcSourceSeg()}<button class="btn sm primary" data-action="exportSummary">${icon('download')}Export PNG</button><button class="toggle ${S.ui.neutral ? 'on' : ''}" data-action="toggleNeutral" title="Hide postures, ease ratings, avoid tags and your notes so you can show this screen to others">Share view <span class="sw"></span></button></span></div><div class="row" style="margin:-6px 0 12px"><span class="muted small">Click a column to sort. Offer columns only count offers between you and that manager: Sleeper hides other managers' offers to each other.</span></div>
   <div class="three" style="margin-bottom:16px">
     <div class="card tile">${icon('swap')}<div class="num">${tot('hisSent')} / ${tot('mySent')}</div><div class="lab">Offers to you / from you</div></div>
     <div class="card tile">${icon('x')}<div class="num">${tot('hisRej')} / ${tot('myRej')}</div><div class="lab">Your offers rejected / offers you rejected</div></div>
@@ -3754,6 +3763,7 @@ const sgn = (v, f) => `${v > 0 ? '+' : v < 0 ? '−' : ''}${f(Math.abs(v))}`;
 const netC = (v, has = true) => (!has ? { text: '—', color: POSTER.muted } : { text: sgn(v, k), color: v > 250 ? POSTER.good : v < -250 ? POSTER.bad : '#c4b3e6' });
 const ptsC = (v, has = true) => (!has ? { text: '—', color: POSTER.muted } : { text: sgn(Math.round(v), (x) => String(x)), color: v > 10 ? POSTER.good : v < -10 ? POSTER.bad : '#c4b3e6' });
 const leagueName = () => (S.raw && S.raw.league && S.raw.league.name) || "Casey's Dynasty League";
+const srcTag = () => (S.bookRaw && S.bookRaw.ktcAlts ? ` · KTC ${KTC_SOURCES[S.cfg.ktcSource] || KTC_SOURCES.crowd}` : '');
 const fileStamp = () => `${(S.model && S.model.league.season) || ''}-wk${(S.model && S.model.league.week) || ''}`;
 
 function tradeSummaryPoster() {
@@ -3774,7 +3784,7 @@ function tradeSummaryPoster() {
     banner: 2,
     file: `caseys-trade-summary-${fileStamp()}.png`,
     title: 'Trade summary', eyebrow: leagueName(),
-    subtitle: `Who won the trades · week ${m.league.week}, ${m.league.season}`,
+    subtitle: `Who won the trades · week ${m.league.week}, ${m.league.season}${srcTag()}`,
     awards,
     groups: [
       { label: '', cols: [{ key: '#', label: '#', w: 70, align: 'center' }, { key: 'name', label: 'Manager', align: 'left' }] },
@@ -3976,7 +3986,7 @@ function valueTimePoster() {
     banner: 4,
     file: `caseys-value-over-time-${sel.length ? shown.map((t) => t.name).join('-').toLowerCase().replace(/[^a-z0-9]+/g, '-').slice(0, 40) : 'league'}-${fileStamp()}.png`,
     title: 'Value over time', eyebrow: leagueName(),
-    subtitle: `${sel.length ? shown.map((t) => t.name).join(' · ') : 'Every team'} · ${dY(V.start)} to today`,
+    subtitle: `${sel.length ? shown.map((t) => t.name).join(' · ') : 'Every team'} · ${dY(V.start)} to today${srcTag()}`,
     awards,
     chart: {
       title: `Team value, week by week (${startName.toLowerCase()} to today)`,
@@ -4108,7 +4118,7 @@ function ledgerPoster(rid) {
     banner: 3,
     file: `caseys-ledger-${String(t.name).toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${fileStamp()}.png`,
     title: 'Team ledger', eyebrow: leagueName(),
-    subtitle: `${t.name} · ${dY(V.start)} to today`,
+    subtitle: `${t.name} · ${dY(V.start)} to today${srcTag()}`,
     team: { name: t.name, avatar: avatarUrl(t) },
     chart: {
       title: `${t.name}: value week by week, with the league average`,
@@ -4661,6 +4671,7 @@ const actions = {
   exportMock(el) { return exportMock(el); },
   exportVot(el) { return exportPoster(el, valueTimePoster); },
   exportLedger(el) { return exportLedger(el); },
+  async ktcSource(el) { S.cfg = await sync.saveSettings({ ktcSource: el.dataset.src }); S.book = withKtcSource(S.bookRaw, el.dataset.src); await rebuild(); render(); },
   async saveSettings() {
     const username = ($('#cfg-username') || {}).value || '';
     const leagueId = S.cfg.leagueId || '';
