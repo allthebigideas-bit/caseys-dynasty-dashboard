@@ -774,13 +774,17 @@ const VOT_COLORS = ['#f2b632', '#9d4dff', '#2fc66b', '#4ea1ff', '#f05a5a', '#f2a
 
 function viewValueTime() {
   const m = S.model;
-  const V0 = m.valueTime;
-  if (!V0) return `<div class="card"><h3>Value over time</h3><p class="muted">${esc((S.book && S.book.status && S.book.status.vot && S.book.status.vot.error) || 'Weekly values since the rookie draft load during a sync. Click Sync now.')}</p></div>`;
-  const ui = (S.ui.vot ||= { hi: null, pos: { QB: true, RB: true, WR: true, TE: true, Picks: true }, when: 'end', sort: 'end', from: 'draft' });
-  const V = ui.from === 'season' && V0.season ? V0.season : V0;
-  const fromSeason = V !== V0;
+  const VT = m.valueTime;
+  if (!VT || !VT.windows) return `<div class="card"><h3>Value over time</h3><p class="muted">${esc((S.book && S.book.status && S.book.status.vot && S.book.status.vot.error) || 'Weekly values since the rookie draft load during a sync. Click Sync now.')}</p></div>`;
+  const ui = (S.ui.vot ||= { hi: null, pos: { QB: true, RB: true, WR: true, TE: true, Picks: true }, when: 'end', sort: 'end', from: 'startup', detail: null });
+  const W3 = VT.windows;
+  const from = W3[ui.from] ? ui.from : W3.startup ? 'startup' : W3.season ? 'season' : 'draft';
+  const V = W3[from];
+  const V0 = W3.draft;
+  const fromSeason = from !== 'draft';
   const dstr = (ts) => new Date(ts).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
-  const startName = fromSeason ? 'Season start' : 'Draft day';
+  const dstrY = (ts) => new Date(ts).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+  const startName = from === 'startup' ? 'Startup draft' : from === 'season' ? 'Season start' : 'Draft day';
   const teamsSorted = [...m.teams].sort((a, b) => V.rows[b.rid].end - V.rows[a.rid].end);
   const color = Object.fromEntries([...m.teams].sort((a, b) => a.rid - b.rid).map((t, i) => [t.rid, t.isMe ? '#f2b632' : VOT_COLORS[(i % (VOT_COLORS.length - 1)) + 1]]));
   const sgnK = (v) => `${v > 0 ? '+' : v < 0 ? '−' : ''}${k(Math.abs(v))}`;
@@ -799,8 +803,8 @@ function viewValueTime() {
   const months = [];
   for (let d = new Date(t0); d.getTime() <= t1; d.setMonth(d.getMonth() + 1, 1)) months.push(new Date(d.getFullYear(), d.getMonth(), 1).getTime());
   const grid = gy.map((v) => `<line x1="${L}" x2="${W - R}" y1="${Y(v)}" y2="${Y(v)}" class="vg"/><text x="${L - 8}" y="${Y(v) + 4}" text-anchor="end" class="vt">${k(v)}</text>`).join('')
-    + months.filter((ts) => ts >= t0).map((ts) => `<text x="${X(ts)}" y="${H - 8}" text-anchor="middle" class="vt">${esc(new Date(ts).toLocaleDateString(undefined, { month: 'short' }))}</text>`).join('')
-    + (fromSeason ? `<line x1="${X(V0.start)}" x2="${X(V0.start)}" y1="${T}" y2="${H - B}" class="vdraft"/><text x="${X(V0.start) + 4}" y="${T + 10}" class="vt">Rookie draft</text>` : '');
+    + months.filter((ts) => ts >= t0).map((ts) => `<text x="${X(ts)}" y="${H - 8}" text-anchor="middle" class="vt">${esc(new Date(ts).getMonth() === 0 ? String(new Date(ts).getFullYear()) : new Date(ts).toLocaleDateString(undefined, { month: 'short' }))}</text>`).join('')
+    + (fromSeason ? `<line x1="${X(V0.start)}" x2="${X(V0.start)}" y1="${T}" y2="${H - B}" class="vdraft"/><text x="${X(V0.start) + 4}" y="${T + 10}" class="vt">${new Date(V0.start).getFullYear()} rookie draft</text>` : '');
   const strong = (t) => ui.hi === t.rid || (ui.hi == null && t.isMe);
   const lines = [...m.teams].sort((a, b) => strong(a) - strong(b)).map((t) => {
     const pts = V.series[t.rid];
@@ -824,7 +828,7 @@ function viewValueTime() {
     return `<g class="vend${dim ? ' dim' : ''}" data-action="votHi" data-rid="${t.rid}"><path d="M${x + 3},${y} L${lx - 6},${ly}" stroke="${color[t.rid]}" stroke-width="1.2" fill="none" opacity=".7"/><circle cx="${lx + 10}" cy="${ly}" r="11.5" fill="none" stroke="${color[t.rid]}" stroke-width="2"/>${logo}<text x="${lx + 28}" y="${ly + 4}" class="vlab${strong(t) ? ' on' : ''}">${esc(t.name.length > 13 ? t.name.slice(0, 12) + '…' : t.name)}</text></g>`;
   }).join('');
   const defs = '<defs><clipPath id="vclip" clipPathUnits="objectBoundingBox"><circle cx=".5" cy=".5" r=".5"/></clipPath></defs>';
-  const fromSeg = V0.season ? `<span class="tseg2"><button class="${fromSeason ? '' : 'on'}" data-action="votFrom" data-from="draft">Since the rookie draft · ${esc(dstr(V0.start))}</button><button class="${fromSeason ? 'on' : ''}" data-action="votFrom" data-from="season">Since the season started · ${esc(dstr(V0.season.start))}</button></span>` : '';
+  const fromSeg = Object.keys(W3).length > 1 ? `<span class="tseg2">${[['startup', 'Since the startup draft'], ['season', 'This season'], ['draft', 'Since this year\'s rookie draft']].filter(([k2]) => W3[k2]).map(([k2, l]) => `<button class="${from === k2 ? 'on' : ''}" data-action="votFrom" data-from="${k2}" title="From ${esc(dstrY(W3[k2].start))}">${l}</button>`).join('')}</span>` : '';
   const weeklyTot = m.teams.reduce((s2, t) => s2 + (V.rows[t.rid].weeklyNow || 0), 0), endTot = m.teams.reduce((s2, t) => s2 + V.rows[t.rid].end, 0);
   const gap = endTot ? weeklyTot / endTot - 1 : 0;
   const chart = `<div class="card"><div class="sec-h"><h3 style="margin:0">Team value, week by week</h3>${fromSeg}</div>
@@ -833,9 +837,9 @@ function viewValueTime() {
 
   // -- bridge table
   const bridgeCols = [
-    ['start', startName, fromSeason ? 'Roster and picks at the start of the league season' : 'Roster and picks just after this season\'s rookie draft'],
+    ['start', startName, from === 'startup' ? 'Rosters and picks right after the league\'s startup draft' : from === 'season' ? 'Roster and picks at the start of the league season' : 'Roster and picks just after this season\'s rookie draft'],
     ['trades', 'Trades', 'Value received minus value given, each trade valued the week it happened'],
-    ...(fromSeason ? [['draft', 'Rookie draft', 'Players drafted minus the value of the picks used, the week of the draft']] : []),
+    ...(fromSeason ? [['draft', 'Rookie drafts', 'Players drafted minus the value of the picks used, the week of each draft']] : []),
     ['added', 'Waivers added', 'Players added off waivers or free agency, valued that week'],
     ['lost', 'Value lost', 'Players dropped or released, valued that week'],
     ['residual', 'Appreciation', 'What\'s left: players and picks gaining or losing value while held'],
@@ -845,29 +849,71 @@ function viewValueTime() {
   const sortKey = bridgeCols.some(([key]) => key === ui.sort) ? ui.sort : 'end';
   const rows = [...m.teams].sort((a, b) => { const x = V.rows[a.rid][sortKey], y = V.rows[b.rid][sortKey]; return sortKey === 'lost' ? x - y : y - x; });
   const tot = (key) => m.teams.reduce((s2, t) => s2 + V.rows[t.rid][key], 0);
-  const allT = V0.allTrades || {};
+  const tc = VT.tradeCounts || { cur: {}, old: {} };
+  const allOf = (rid) => (from === 'startup' ? (tc.cur[rid] || 0) + (tc.old[rid] || 0) : tc.cur[rid] || 0);
+  const go = (key, rid, inner) => (rid == null ? inner : `<button class="cell-link" data-action="${key === 'trades' ? 'votTrades' : 'votDetail'}" data-rid="${rid}" data-kind="${key === 'added' || key === 'lost' ? 'waivers' : key === 'residual' ? 'appr' : key}" title="${key === 'trades' ? 'Open Trade summary' : 'Show every player behind this number'}">${inner}</button>`);
   const cell = (key, v, r, t) => {
     if (key === 'start' || key === 'end') return `<td class="num"><b>${k(v)}</b></td>`;
-    if (key === 'lost') return `<td class="num ${v > 250 ? 'down' : ''}">${v ? `−${k(v)}` : '<span class="faint">0</span>'}${r && r.lostCount ? `<div class="faint small">${r.lostCount} player${r.lostCount === 1 ? '' : 's'}</div>` : ''}</td>`;
-    if (key === 'added') return `<td class="num ${cls(v)}">${v ? `+${k(v)}` : '<span class="faint">0</span>'}${r && r.addCount ? `<div class="faint small">${r.addCount} add${r.addCount === 1 ? '' : 's'}</div>` : ''}</td>`;
-    if (key === 'draft') return `<td class="num ${cls(v)}">${r && !r.draftCount ? '<span class="faint">—</span>' : sgnK(v)}${r && r.draftCount ? `<div class="faint small">${r.draftCount} pick${r.draftCount === 1 ? '' : 's'}</div>` : ''}</td>`;
+    const rid = t ? t.rid : null;
+    if (key === 'lost') return `<td class="num ${v > 250 ? 'down' : ''}">${go(key, rid, `${v ? `−${k(v)}` : '<span class="faint">0</span>'}${r && r.lostCount ? `<div class="faint small">${r.lostCount} player${r.lostCount === 1 ? '' : 's'}</div>` : ''}`)}</td>`;
+    if (key === 'added') return `<td class="num ${cls(v)}">${go(key, rid, `${v ? `+${k(v)}` : '<span class="faint">0</span>'}${r && r.addCount ? `<div class="faint small">${r.addCount} add${r.addCount === 1 ? '' : 's'}</div>` : ''}`)}</td>`;
+    if (key === 'draft') return `<td class="num ${cls(v)}">${go(key, rid, `${r && !r.draftCount ? '<span class="faint">—</span>' : sgnK(v)}${r && r.draftCount ? `<div class="faint small">${r.draftCount} pick${r.draftCount === 1 ? '' : 's'}</div>` : ''}`)}</td>`;
     if (key === 'trades') {
-      const all2 = t ? allT[t.rid] || 0 : 0;
-      return `<td class="num ${cls(v)}">${r && !r.tradeCount ? '<span class="faint">—</span>' : sgnK(v)}${r ? `<div class="faint small">${r.tradeCount} trade${r.tradeCount === 1 ? '' : 's'}${all2 > r.tradeCount ? ` <span title="Trade summary counts every trade this season">of ${all2}</span>` : ''}</div>` : ''}</td>`;
+      const all2 = rid != null ? allOf(rid) : 0;
+      return `<td class="num ${cls(v)}">${go(key, rid, `${r && !r.tradeCount ? '<span class="faint">—</span>' : sgnK(v)}${r ? `<div class="faint small">${r.tradeCount} trade${r.tradeCount === 1 ? '' : 's'}${all2 > r.tradeCount ? ` of ${all2}` : ''}</div>` : ''}`)}</td>`;
     }
+    if (key === 'residual') return `<td class="num ${cls(v)}">${go(key, rid, `<b>${sgnK(v)}</b>`)}</td>`;
     return `<td class="num ${cls(v)}"><b>${sgnK(v)}</b>${key === 'change' && r && r.start ? `<div class="faint small">${v >= 0 ? '+' : ''}${Math.round((v / r.start) * 100)}%</div>` : ''}</td>`;
   };
-  const anyEarlier = m.teams.some((t) => (allT[t.rid] || 0) > V.rows[t.rid].tradeCount);
+  const anyEarlier = m.teams.some((t) => allOf(t.rid) > V.rows[t.rid].tradeCount);
   const bridge = `<div class="card" style="margin-top:14px"><h3>Where each team's value came from</h3>
     <div class="scroll"><table class="t vot"><thead><tr><th>Team</th>${bridgeCols.map(([key, l, tip]) => `<th class="num sortable${sortKey === key ? ' on' : ''}" data-action="votSort" data-key="${key}" title="${esc(tip)}">${l}${sortKey === key ? ' ↓' : ''}</th>`).join('')}</tr></thead>
     <tbody>${rows.map((t) => { const r = V.rows[t.rid]; return `<tr class="${t.isMe ? 'me' : ''}${ui.hi === t.rid ? ' hl' : ''}"><td><div class="who"><i class="vdot" style="background:${color[t.rid]}"></i>${teamAvatar(t)}${tlink(t.rid)}</div></td>${bridgeCols.map(([key]) => cell(key, r[key], r, t)).join('')}</tr>`; }).join('')}
       <tr class="tot"><td><b>League</b></td>${bridgeCols.map(([key]) => cell(key, tot(key))).join('')}</tr></tbody></table></div>
     <div class="faint small" style="margin:8px 0 0;display:grid;gap:4px">
       <div>${startName} + Trades${fromSeason ? ' + Rookie draft' : ''} + Waivers added − Value lost + Appreciation = Today.</div>
-      <div><b>Why Trades differs from Trade summary:</b> ${anyEarlier && !fromSeason ? `this window starts at the rookie draft (${esc(dstr(V0.start))}), so trades made before it aren't here ("3 of 8" means 3 trades since the draft out of 8 this season); switch to "Since the season started" to include them. ` : ''}Trade summary's "Net value now" values every asset at today's values, so a trade that has since paid off shows its full gain there. Here each trade is valued the week it happened, and any gain since then shows up in Appreciation.</div>
-      <div><b>Value lost</b> is what players were worth the week they were dropped. Teams that churn the waiver wire add and lose a lot; the two mostly cancel out.</div>
+      <div><b>Trades</b> are Trade summary's "Net then" figures${from === 'startup' ? ', this season plus earlier seasons' : ' for this season'}: what each trade was worth the week it happened, with KTC's package adjustment. Click one to open Trade summary.${anyEarlier ? ` "3 of 8" means 3 of the team's 8 trades${from === 'startup' ? '' : ' this season'} fall inside this window.` : ''} Anything a traded-for player gained or lost since shows up in Appreciation.</div>
+      <div><b>Waivers added</b> and <b>Value lost</b> are what players were worth the week they were added or dropped. <b>Appreciation</b> is every asset's change while the team held it. Click any of those numbers for the player-by-player list.</div>
       ${Object.keys(V.mismatch).length ? `<div>Some moves are missing from Sleeper's list for ${Object.keys(V.mismatch).map((rid) => esc(tname(Number(rid)))).join(', ')}, so their Appreciation also carries those players.</div>` : ''}
     </div></div>`;
+
+  // -- detail: every player behind a number
+  const detail = ui.detail && V.ledger && V.ledger[ui.detail.rid] ? ui.detail : null;
+  let detailCard = '';
+  if (detail) {
+    const L2 = V.ledger[detail.rid];
+    const r = V.rows[detail.rid];
+    const nameOfKey = (key) => {
+      if (key.startsWith('p:')) return playerLink(key.slice(2), P(key.slice(2)).name);
+      const [, y, rd, orig] = key.split(':');
+      return esc(`${y} ${roundName(Number(rd))} (${tname(Number(orig))})`);
+    };
+    const nowOf = (key) => (key.startsWith('p:') ? (pval(key.slice(2)).v || 0) : null);
+    const dd = (ts) => esc(dstrY(ts));
+    const tabs = [['waivers', 'Waivers'], ['appr', 'Appreciation'], ...(fromSeason ? [['draft', 'Rookie drafts']] : [])];
+    let body = '';
+    if (detail.kind === 'waivers') {
+      const ev = [...L2.adds.map((x) => ({ ...x, kind: 'Added' })), ...L2.drops.map((x) => ({ ...x, kind: 'Dropped' }))].sort((a, b) => b.at - a.at);
+      body = `<div class="scroll"><table class="t"><thead><tr><th>Date</th><th>Move</th><th>Player</th><th class="num">Value that week</th><th class="num">Value today</th></tr></thead><tbody>${ev.map((x) => `<tr><td class="muted">${dd(x.at)}</td><td><span class="pill ${x.kind === 'Added' ? 'good' : 'sell'}">${x.kind}</span></td><td>${nameOfKey(x.key)} ${posTag(P(x.key.slice(2)).pos)}</td><td class="num ${x.kind === 'Added' ? 'up' : 'down'}">${x.kind === 'Added' ? '+' : '−'}${k(x.v)}</td><td class="num muted">${k(nowOf(x.key) || 0)}</td></tr>`).join('') || '<tr><td colspan="5" class="muted">No waiver moves in this window.</td></tr>'}
+        <tr class="tot"><td colspan="3"><b>Waivers added</b> · ${L2.adds.length} adds</td><td class="num up"><b>+${k(r.added)}</b></td><td></td></tr>
+        <tr class="tot"><td colspan="3"><b>Value lost</b> · ${r.lostCount} drops (including players released in trades)</td><td class="num down"><b>−${k(r.lost)}</b></td><td></td></tr></tbody></table></div>`;
+    } else if (detail.kind === 'draft') {
+      body = `<div class="scroll"><table class="t"><thead><tr><th>Draft</th><th>Pick used</th><th>Player taken</th><th class="num">Pick value</th><th class="num">Player value then</th><th class="num">Gain</th><th class="num">Player today</th></tr></thead><tbody>${L2.draft.sort((a, b) => a.at - b.at).map((x) => `<tr><td class="muted">${new Date(x.at).getFullYear()}</td><td>${x.pick ? nameOfKey(x.pick) : '—'}</td><td>${nameOfKey(x.key)} ${posTag(P(x.key.slice(2)).pos)}</td><td class="num">${k(x.vPick)}</td><td class="num">${k(x.v)}</td><td class="num ${cls(x.v - x.vPick)}">${sgnK(x.v - x.vPick)}</td><td class="num muted">${k(nowOf(x.key) || 0)}</td></tr>`).join('') || '<tr><td colspan="7" class="muted">No rookie draft picks in this window.</td></tr>'}
+        <tr class="tot"><td colspan="5"><b>Rookie drafts</b></td><td class="num"><b>${sgnK(r.draft)}</b></td><td></td></tr></tbody></table></div>`;
+    } else {
+      const how = { start: startName.toLowerCase(), trade: 'trade', draft: 'drafted', move: 'waivers' };
+      const out = { held: 'still held', trade: 'traded away', move: 'dropped', draft: 'used in draft' };
+      const rowsA = [...L2.held].filter((x) => Math.abs(x.vOut - x.vIn) >= 1).sort((a, b) => (b.vOut - b.vIn) - (a.vOut - a.vIn));
+      body = `<div class="scroll" style="max-height:520px"><table class="t"><thead><tr><th>Asset</th><th>Came from</th><th>Held</th><th class="num">Value in</th><th class="num">Value out / today</th><th class="num">Change</th></tr></thead><tbody>${rowsA.map((x) => `<tr><td>${nameOfKey(x.key)}${x.key.startsWith('p:') ? ` ${posTag(P(x.key.slice(2)).pos)}` : ''}</td><td class="muted small">${esc(how[x.how] || x.how)}</td><td class="muted small">${dd(x.from)} → ${x.out === 'held' ? 'today' : `${dd(x.to)}, ${esc(out[x.out] || x.out)}`}</td><td class="num">${k(x.vIn)}</td><td class="num">${k(x.vOut)}</td><td class="num ${cls(x.vOut - x.vIn)}">${sgnK(x.vOut - x.vIn)}</td></tr>`).join('')}
+        <tr class="tot"><td colspan="5"><b>Players and picks</b> (${rowsA.length} that changed value)</td><td class="num"><b>${sgnK(r.assetAppr)}</b></td></tr>
+        ${Math.abs(r.pkgAdj) >= 1 ? `<tr class="tot"><td colspan="5">Trade pricing: Trade summary's package adjustment and recent-trade KTC prices, compared with each player's own value</td><td class="num">${sgnK(r.pkgAdj)}</td></tr>` : ''}
+        ${Math.abs(r.other) >= 1 ? `<tr class="tot"><td colspan="5">Today's dashboard total vs the sum of each asset's value (projected pick slots, players without a value)</td><td class="num">${sgnK(r.other)}</td></tr>` : ''}
+        <tr class="tot"><td colspan="5"><b>Appreciation</b></td><td class="num"><b>${sgnK(r.residual)}</b></td></tr></tbody></table></div>`;
+    }
+    detailCard = `<div class="card" style="margin-top:14px" id="vot-detail"><div class="sec-h"><h3 style="margin:0">${teamAvatar(team(detail.rid))} ${esc(tname(detail.rid))}: ${esc((tabs.find((x) => x[0] === detail.kind) || tabs[0])[1])}</h3>
+      <span class="row" style="gap:8px"><select class="sel" data-votteam="1">${m.teams.map((t) => `<option value="${t.rid}" ${t.rid === detail.rid ? 'selected' : ''}>${esc(t.name)}</option>`).join('')}</select><span class="tseg2">${tabs.map(([k2, l]) => `<button class="${detail.kind === k2 ? 'on' : ''}" data-action="votDetail" data-rid="${detail.rid}" data-kind="${k2}">${l}</button>`).join('')}</span><button class="btn sm" data-action="votDetailClose">Close</button></span></div>
+      ${body}</div>`;
+  }
 
   // -- value by position
   const POS = ['QB', 'RB', 'WR', 'TE', 'Picks'];
@@ -889,7 +935,7 @@ function viewValueTime() {
     <div class="card">${toggles}<div class="pbars" style="margin-top:14px">${bars}</div>${posTable}
     <p class="faint small" style="margin:8px 0 0">Kickers and defenses aren't counted. Small numbers are each team's league rank at that position.</p></div>`;
 
-  return `<div class="sec-h"><h2>Value over time</h2><span class="muted small">${fromSeason ? `From the start of the league season (${esc(dstr(V.start))}) to today` : `From this season's rookie draft (${esc(dstr(V.start))}) to today`}</span></div>${chart}${bridge}${posCard}`;
+  return `<div class="sec-h"><h2>Value over time</h2><span class="muted small">${from === 'startup' ? `From the startup draft (${esc(dstrY(V.start))}) to today` : from === 'season' ? `From the start of the league season (${esc(dstrY(V.start))}) to today` : `From this season's rookie draft (${esc(dstrY(V.start))}) to today`}</span></div>${chart}${bridge}${detailCard}${posCard}`;
 }
 
 function viewSummary() {
@@ -972,7 +1018,7 @@ function viewSummary() {
   const visCols = (g) => g.cols.filter((c) => !(neutral && c.judge));
   const groupHead = groups.map((g) => `<th colspan="${visCols(g).length}" class="${g.label ? 'grp' : ''}">${esc(g.label)}</th>`).join('');
   const colHead = groups.map((g) => visCols(g).map((c) => c.h).join('')).join('');
-  const body = rows.map((r) => `<tr class="${r.isMe ? 'me' : ''}">${groups.map((g) => visCols(g).map((c) => c.td(r)).join('')).join('')}</tr>`).join('');
+  const body = rows.map((r) => `<tr class="${r.isMe ? 'me' : ''}${S.ui.sumHi === r.rid ? ' hl' : ''}"${S.ui.sumHi === r.rid ? ' id="sum-hl"' : ''}>${groups.map((g) => visCols(g).map((c) => c.td(r)).join('')).join('')}</tr>`).join('');
   // league totals
   const others = rows.filter((r) => !r.isMe);
   const tot = (key) => others.reduce((s2, r) => s2 + (r[key] || 0), 0);
@@ -4338,6 +4384,9 @@ const actions = {
   votPos(el) { const p = el.dataset.pos; S.ui.vot.pos[p] = !S.ui.vot.pos[p]; if (!Object.values(S.ui.vot.pos).some(Boolean)) S.ui.vot.pos[p] = true; render(); },
   votWhen(el) { S.ui.vot.when = el.dataset.when; render(); },
   votFrom(el) { S.ui.vot.from = el.dataset.from; render(); },
+  votTrades(el) { S.ui.sumHi = Number(el.dataset.rid); location.hash = '#summary'; setTimeout(() => { const r = document.getElementById('sum-hl'); if (r) r.scrollIntoView({ behavior: 'smooth', block: 'center' }); }, 120); },
+  votDetail(el) { S.ui.vot.detail = { rid: Number(el.dataset.rid), kind: el.dataset.kind }; render(); setTimeout(() => { const d = document.getElementById('vot-detail'); if (d) d.scrollIntoView({ behavior: 'smooth', block: 'start' }); }, 30); },
+  votDetailClose() { S.ui.vot.detail = null; render(); },
   exportSummary(el) { return exportPoster(el, tradeSummaryPoster); },
   exportSeason(el) { return exportPoster(el, seasonPoster); },
   exportMock(el) { return exportMock(el); },
@@ -4459,6 +4508,7 @@ document.addEventListener('change', async (e) => {
     await runSync();
     return;
   }
+  if (el.dataset.votteam) { S.ui.vot.detail = { ...S.ui.vot.detail, rid: Number(el.value) }; render(); return; }
   if (el.dataset.pick === 'league') {
     try { await pickLeague(el.value); } catch (err) { S.pick.error = err.message; }
     render();

@@ -1317,3 +1317,8 @@ table.t tr.tot td { border-top: 2px solid var(--line-2); }
 .pbar i { display: block; height: 100%; }
 .pbar-tot { text-align: right; font-weight: 700; }
 @media (max-width: 600px) { .pbar-row { grid-template-columns: 90px 1fr 52px; } }
+
+.cell-link { all: unset; cursor: pointer; display: inline-block; text-align: right; border-radius: 6px; padding: 2px 4px; margin: -2px -4px; }
+.cell-link:hover, .cell-link:focus-visible { background: rgb(var(--gold-rgb) / .14); outline: none; }
+.cell-link:hover > :first-child, .cell-link:hover { text-decoration: underline dotted; text-underline-offset: 3px; }
+table.t tr.hl td { background: rgb(var(--gold-rgb) / .12); }
