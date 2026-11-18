@@ -590,7 +590,9 @@ export async function downloadCanvas(c, file) {
 export async function drawLedger(spec) {
   const art = await loadArt();
   const teamImg = await loadRemote(spec.team && spec.team.avatar);
+  const chartAvs = spec.chart ? await Promise.all(spec.chart.series.map((x) => loadRemote(x.avatar))) : [];
   const W = 2000;
+  const CHART = spec.chart ? 620 : 0;
   const ROWH = 36, SHEAD = 64, CHEAD = 40, FOOTH = 34, GAPS = 30;
   const layout = spec.sections.map((s) => {
     const split = s.rows.length > 16 && s.split !== false ? 2 : 1;
@@ -600,7 +602,7 @@ export async function drawLedger(spec) {
   });
   const HEADER = 430, BRIDGE = 190, FOOT = 250;
   const notesH = 30 + (spec.notes || []).length * 30;
-  const H = HEADER + BRIDGE + layout.reduce((a, l) => a + l.h + GAPS, 0) + notesH + FOOT;
+  const H = HEADER + BRIDGE + CHART + layout.reduce((a, l) => a + l.h + GAPS, 0) + notesH + FOOT;
   const c = document.createElement('canvas');
   c.width = W; c.height = H;
   const ctx = c.getContext('2d');
@@ -636,6 +638,7 @@ export async function drawLedger(spec) {
     }
   });
   y += BRIDGE;
+  if (CHART) { lineChart(ctx, PAD, y, W - PAD * 2, CHART - 30, spec.chart, chartAvs); y += CHART; }
 
   // sections
   for (const { s, split, per, h } of layout) {

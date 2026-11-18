@@ -174,6 +174,15 @@ The sidebar on the left has every page. The top bar has search (players and mana
   - **Who drafts well in this league,** and every past rookie draft with what each pick became.
   - **Prospect board:** FantasyPros dynasty rookie rankings when they cover next year's class. Otherwise, paste any ranking list. You can star your guys.
 
+## What changed in 2.39.0
+- **Team ledger page** (under Value over time in the sidebar). Pick a team to see everything at once:
+  - the bridge from the starting value to today;
+  - its value week by week next to the league average;
+  - Trades, Waivers, Rookie drafts and Appreciation, listed in full one after another.
+
+  Clicking a number on Value over time opens this page at that section. The window switch and "Export ledger" are here too.
+- **The ledger export includes the chart:** the team's value week by week, with the league average and the rookie draft marked.
+
 ## What changed in 2.38.1
 - **Fixed: reversed trades counted twice.** When Sleeper shows the same trade twice (same teams, same players and picks, nothing in between moving them), the first one was reversed and made again. Only the later one now counts, in Trade summary, League trades and Value over time. The trades list on Value over time says which trade was left out.
 - The trades list on Value over time now totals "Net now" too.
