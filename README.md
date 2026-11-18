@@ -174,6 +174,9 @@ The sidebar on the left has every page. The top bar has search (players and mana
   - **Who drafts well in this league,** and every past rookie draft with what each pick became.
   - **Prospect board:** FantasyPros dynasty rookie rankings when they cover next year's class. Otherwise, paste any ranking list. You can star your guys.
 
+## What changed in 2.41.0
+- **Fixed: Value over time started too high.** The starting value counted an extra year of draft picks that today's values don't include, so every team looked like it had lost value. Team values now count picks for the next two rookie drafts at every point in time, the same as today's values. When a rookie draft finishes, the year after next starts counting; that shows as its own **New pick year** step (on screen, in the team ledger and in the exports) instead of hiding in the starting value.
+
 ## What changed in 2.40.0
 - **Choose KTC's value source.** Trade summary, Value over time and Team ledger now have a Crowdsourced / Crowd + Trades / Tradesourced switch, matching KeepTradeCut's own setting. It changes every KTC value the dashboard uses (team values, trade grades, the scale for historical values) and is remembered. Exports note which source they used. KTC's other sources load on the next sync.
 

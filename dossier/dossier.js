@@ -848,6 +848,7 @@ function viewValueTime() {
     ['start', startName, from === 'startup' ? 'Rosters and picks right after the league\'s startup draft' : from === 'season' ? 'Roster and picks at the start of the league season' : 'Roster and picks just after this season\'s rookie draft'],
     ['trades', 'Trades', 'Value received minus value given, each trade valued the week it happened'],
     ...(fromSeason ? [['draft', 'Rookie drafts', 'Players drafted minus the value of the picks used, the week of each draft']] : []),
+    ...(m.teams.some((t) => V.rows[t.rid].newPickCount) ? [['newPicks', 'New pick year', 'After each rookie draft, the picks two drafts out start counting (the same two years of picks as today\'s values)']] : []),
     ['added', 'Waivers added', 'Players added off waivers or free agency, valued that week'],
     ['lost', 'Value lost', 'Players dropped or released, valued that week'],
     ['residual', 'Appreciation', 'What\'s left: players and picks gaining or losing value while held'],
@@ -865,6 +866,7 @@ function viewValueTime() {
     const rid = t ? t.rid : null;
     if (key === 'lost') return `<td class="num ${v > 250 ? 'down' : ''}">${go(key, rid, `${v ? `−${k(v)}` : '<span class="faint">0</span>'}${r && r.lostCount ? `<div class="faint small">${r.lostCount} player${r.lostCount === 1 ? '' : 's'}</div>` : ''}`)}</td>`;
     if (key === 'added') return `<td class="num ${cls(v)}">${go(key, rid, `${v ? `+${k(v)}` : '<span class="faint">0</span>'}${r && r.addCount ? `<div class="faint small">${r.addCount} add${r.addCount === 1 ? '' : 's'}</div>` : ''}`)}</td>`;
+    if (key === 'newPicks') return `<td class="num ${cls(v)}">${go('draft', rid, `${r && !r.newPickCount ? '<span class="faint">—</span>' : sgnK(v)}${r && r.newPickCount ? `<div class="faint small">${r.newPickCount} picks</div>` : ''}`)}</td>`;
     if (key === 'draft') return `<td class="num ${cls(v)}">${go(key, rid, `${r && !r.draftCount ? '<span class="faint">—</span>' : sgnK(v)}${r && r.draftCount ? `<div class="faint small">${r.draftCount} pick${r.draftCount === 1 ? '' : 's'}</div>` : ''}`)}</td>`;
     if (key === 'trades') {
       const all2 = rid != null ? allOf(rid) : 0;
@@ -879,7 +881,7 @@ function viewValueTime() {
     <tbody>${rows.map((t) => { const r = V.rows[t.rid]; return `<tr class="${t.isMe ? 'me' : ''}${sel.includes(t.rid) ? ' hl' : ''}"><td><div class="who"><button class="vdot-btn" data-action="votHi" data-rid="${t.rid}" title="Pick out this team"><i class="vdot" style="background:${color[t.rid]}"></i></button>${teamAvatar(t)}${tlink(t.rid)}</div></td>${bridgeCols.map(([key]) => cell(key, r[key], r, t)).join('')}</tr>`; }).join('')}
       <tr class="tot"><td><b>League</b></td>${bridgeCols.map(([key]) => cell(key, tot(key))).join('')}</tr></tbody></table></div>
     <div class="faint small" style="margin:8px 0 0;display:grid;gap:4px">
-      <div>${startName} + Trades${fromSeason ? ' + Rookie draft' : ''} + Waivers added − Value lost + Appreciation = Today.</div>
+      <div>${startName} + Trades${fromSeason ? ' + Rookie drafts + New pick year' : ''} + Waivers added − Value lost + Appreciation = Today. Like today's values, a team's value counts picks for the next two rookie drafts only; when a draft is done, the year after next starts counting ("New pick year").</div>
       <div><b>Trades</b> are Trade summary's "Net then" figures${from === 'startup' ? ', this season plus earlier seasons' : ' for this season'}: what each trade was worth the week it happened, with KTC's package adjustment. Click one to see each trade next to Trade summary's figures.${anyEarlier ? ` "3 of 8" means 3 of the team's 8 trades${from === 'startup' ? '' : ' this season'} fall inside this window.` : ''} Anything a traded-for player gained or lost since shows up in Appreciation.</div>
       <div><b>Waivers added</b> and <b>Value lost</b> are what players were worth the week they were added or dropped. <b>Appreciation</b> is every asset's change while the team held it. Click any of those numbers for the player-by-player list.</div>
       ${Object.keys(V.mismatch).length ? `<div>Some moves are missing from Sleeper's list for ${Object.keys(V.mismatch).map((rid) => esc(tname(Number(rid)))).join(', ')}, so their Appreciation also carries those players.</div>` : ''}
@@ -937,7 +939,7 @@ function viewLedger(ridArg) {
     const nowOf = (key) => (key.startsWith('p:') ? (pval(key.slice(2)).v || 0) : null);
     const dd = (ts) => esc(dstrY(ts));
     const tabs = [['trades', 'Trades'], ['waivers', 'Waivers'], ...(fromSeason ? [['draft', 'Rookie drafts']] : []), ['appr', 'Appreciation']];
-  const totals = { trades: r.trades, waivers: r.added - r.lost, draft: r.draft, appr: r.residual };
+  const totals = { trades: r.trades, waivers: r.added - r.lost, draft: r.draft + r.newPicks, appr: r.residual };
   const sections = tabs.map(([kind, label]) => {
     detail.kind = kind;
     let body = '';
@@ -962,7 +964,8 @@ function viewLedger(ridArg) {
         <tr class="tot"><td colspan="3"><b>Value lost</b> · ${r.lostCount} drops (including players released in trades)</td><td class="num down"><b>−${k(r.lost)}</b></td><td></td></tr></tbody></table></div>`;
     } else if (detail.kind === 'draft') {
       body = `<div class="scroll"><table class="t"><thead><tr><th>Draft</th><th>Pick used</th><th>Player taken</th><th class="num">Pick value</th><th class="num">Player value then</th><th class="num">Gain</th><th class="num">Player today</th></tr></thead><tbody>${L2.draft.sort((a, b) => a.at - b.at).map((x) => `<tr><td class="muted">${new Date(x.at).getFullYear()}</td><td>${x.pick ? nameOfKey(x.pick) : '—'}</td><td>${nameOfKey(x.key)} ${posTag(P(x.key.slice(2)).pos)}</td><td class="num">${k(x.vPick)}</td><td class="num">${k(x.v)}</td><td class="num ${cls(x.v - x.vPick)}">${sgnK(x.v - x.vPick)}</td><td class="num muted">${k(nowOf(x.key) || 0)}</td></tr>`).join('') || '<tr><td colspan="7" class="muted">No rookie draft picks in this window.</td></tr>'}
-        <tr class="tot"><td colspan="5"><b>Rookie drafts</b></td><td class="num"><b>${sgnK(r.draft)}</b></td><td></td></tr></tbody></table></div>`;
+        <tr class="tot"><td colspan="5"><b>Rookie drafts</b></td><td class="num"><b>${sgnK(r.draft)}</b></td><td></td></tr></tbody></table></div>
+        ${L2.newPicks.length ? `<h4 style="margin:16px 0 6px">New pick year</h4><div class="scroll"><table class="t"><thead><tr><th>When it started counting</th><th>Pick</th><th class="num">Value then</th></tr></thead><tbody>${L2.newPicks.map((x) => `<tr><td class="muted">${dd(x.at)}</td><td>${nameOfKey(x.key)}</td><td class="num">${k(x.v)}</td></tr>`).join('')}<tr class="tot"><td colspan="2"><b>New pick year</b></td><td class="num"><b>${sgnK(r.newPicks)}</b></td></tr></tbody></table></div>` : ''}`;
     } else {
       const how = { start: startName.toLowerCase(), trade: 'trade', draft: 'drafted', move: 'waivers' };
       const out = { held: 'still held', trade: 'traded away', move: 'dropped', draft: 'used in draft' };
@@ -1004,6 +1007,7 @@ function viewLedger(ridArg) {
     step(startName, k(r.start), '', esc(dstrY(V.start)), true),
     step('Trades', sgnK(r.trades), cls(r.trades), `${r.tradeCount} trades`),
     ...(fromSeason ? [step('Rookie drafts', sgnK(r.draft), cls(r.draft), `${r.draftCount} picks`)] : []),
+    ...(r.newPickCount ? [step('New pick year', sgnK(r.newPicks), cls(r.newPicks), `${r.newPickCount} picks`)] : []),
     step('Waivers added', `+${k(r.added)}`, 'up', `${r.addCount} adds`),
     step('Value lost', `−${k(r.lost)}`, 'down', `${r.lostCount} players`),
     step('Appreciation', sgnK(r.residual), cls(r.residual), 'while held'),
@@ -3998,7 +4002,8 @@ function valueTimePoster() {
       { label: 'Start', cols: [{ key: 'start', label: startName, sub: dY(V.start), w: 150 }] },
       { label: 'What changed', cols: [
         { key: 'trades', label: 'Trades', sub: 'net then', w: 135 },
-        ...(fromSeason ? [{ key: 'draft', label: 'Rookie drafts', sub: 'players − picks', w: 150 }] : []),
+        ...(fromSeason ? [{ key: 'draft', label: 'Rookie drafts', sub: 'players − picks', w: 140 }] : []),
+        ...(shown.some((t) => R(t).newPickCount) ? [{ key: 'newPicks', label: 'New pick yr', sub: 'joins at draft', w: 135 }] : []),
         { key: 'added', label: 'Waivers added', sub: 'value that week', w: 150 },
         { key: 'lost', label: 'Value lost', sub: 'drops, that week', w: 150 },
         { key: 'residual', label: 'Appreciation', sub: 'while held', w: 150 },
@@ -4016,6 +4021,7 @@ function valueTimePoster() {
           start: { text: k(r.start), color: '#e9dcff' },
           trades: { text: r.tradeCount ? sg(r.trades) : '—', color: r.tradeCount ? tone(r.trades) : '#8f7bb6' },
           draft: { text: r.draftCount ? sg(r.draft) : '—', color: r.draftCount ? tone(r.draft) : '#8f7bb6' },
+          newPicks: { text: r.newPickCount ? sg(r.newPicks) : '—', color: r.newPickCount ? tone(r.newPicks) : '#8f7bb6' },
           added: { text: r.added ? `+${k(r.added)}` : '0', color: r.added ? '#5fe39a' : '#8f7bb6' },
           lost: { text: r.lost ? `−${k(r.lost)}` : '0', color: r.lost ? '#ff8a8a' : '#8f7bb6' },
           residual: { text: sg(r.residual), color: tone(r.residual) },
@@ -4030,6 +4036,7 @@ function valueTimePoster() {
         start: { text: k(st), color: '#e9dcff', bold: true },
         trades: { text: sg(T('trades')), color: tone(T('trades')), bold: true },
         draft: { text: sg(T('draft')), color: tone(T('draft')), bold: true },
+        newPicks: { text: sg(T('newPicks')), color: tone(T('newPicks')), bold: true },
         added: { text: `+${k(T('added'))}`, color: '#5fe39a', bold: true },
         lost: { text: `−${k(T('lost'))}`, color: '#ff8a8a', bold: true },
         residual: { text: sg(T('residual')), color: tone(T('residual')), bold: true },
@@ -4038,7 +4045,7 @@ function valueTimePoster() {
       } };
     })()]),
     notes: [
-      `${startName} + Trades${fromSeason ? ' + Rookie drafts' : ''} + Waivers added − Value lost + Appreciation = Value today.`,
+      `${startName} + Trades${fromSeason ? ' + Rookie drafts + New pick year' : ''} + Waivers added − Value lost + Appreciation = Value today. Picks count for the next two drafts, as in today's values.`,
       'Trades are Trade summary\'s "Net then" figures. Waivers and drops are valued the week they happened; Appreciation is how every asset moved while the team held it.',
       'Weekly values: DynastyProcess, put on the dashboard\'s scale by rank. Today: the dashboard\'s KTC/FantasyCalc blend.',
     ],
@@ -4109,6 +4116,7 @@ function ledgerPoster(rid) {
     { label: startName, text: k(r.start), sub: dY(V.start) },
     { label: 'Trades', text: sg(r.trades), color: tone(r.trades), sub: `${r.tradeCount} trades` },
     ...(fromSeason ? [{ label: 'Rookie drafts', text: sg(r.draft), color: tone(r.draft), sub: `${r.draftCount} picks` }] : []),
+    ...(r.newPickCount ? [{ label: 'New pick year', text: sg(r.newPicks), color: tone(r.newPicks), sub: `${r.newPickCount} picks` }] : []),
     { label: 'Waivers added', text: `+${k(r.added)}`, color: GOOD, sub: `${r.addCount} adds` },
     { label: 'Value lost', text: `−${k(r.lost)}`, color: BAD, sub: `${r.lostCount} players` },
     { label: 'Appreciation', text: sg(r.residual), color: tone(r.residual), sub: 'while held' },

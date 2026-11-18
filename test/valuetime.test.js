@@ -86,3 +86,17 @@ test('the ledger accounts for the whole residual', () => {
   assert.equal(r.rows[1].other, 2800 - (1800 + 700));
   assert.equal(r.ledger[1].adds.length, 1);
 });
+
+test('a new pick year starts counting at the draft that rolls it in', () => {
+  const later = (k, ts) => (k === 'k:2028:1:1' ? (ts >= 50 ? 3000 : 0) : 1000);
+  const r = valueOverTime({
+    teams: [{ rid: 1, keys: ['p:A', 'k:2028:1:1'], endValue: 4000 }],
+    moves: [{ at: 50, kind: 'roll', match: (k) => k.startsWith('k:2028:') }],
+    start: 0, now: 100, valueAt: later, posOf: () => 'Picks', endValueOf: (k) => (k === 'p:A' ? 1000 : 3000),
+  });
+  const row = r.rows[1];
+  assert.equal(row.start, 1000);
+  assert.equal(row.newPicks, 3000);
+  assert.equal(row.residual, 0);
+  assert.equal(Math.round(row.assetAppr + row.pkgAdj + row.other), 0);
+});
