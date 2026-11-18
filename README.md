@@ -57,6 +57,7 @@ The sidebar on the left has every page. The top bar has search (players and mana
   - Your team card.
   - Your roster value split by career phase (rising, at peak, declining, picks).
   - Your lineup outlook for the next three seasons.
+- **Value over time:** each team's value week by week since this season's rookie draft, then a bridge for every team: draft-day value, plus trades, plus waiver adds, minus players dropped, plus appreciation (what's left: players and picks gaining or losing value while held) equals today. Below that, value by position as a bar chart with position toggles and a draft-day/today switch, and a table with each team's league rank at each position.
 - **Managers:** one card per manager with posture, record, value, age, needs and your note. Each manager's page shows:
   - The evidence behind his posture.
   - "How to deal with him".
@@ -172,6 +173,10 @@ The sidebar on the left has every page. The top bar has search (players and mana
   - **Hit rates by slot and position:** worked out from DynastyProcess's history of rookie values.
   - **Who drafts well in this league,** and every past rookie draft with what each pick became.
   - **Prospect board:** FantasyPros dynasty rookie rankings when they cover next year's class. Otherwise, paste any ranking list. You can star your guys.
+
+## What changed in 2.31.0
+- **New page: Value over time.** A line chart of every team's value each week since the rookie draft (click a team to pick it out), a table showing where each team's value came from (draft day, trades, waivers added, value lost, appreciation, today), and value by position with toggles.
+- Weekly values come from DynastyProcess's weekly history converted to the KTC scale, the same as Trade summary's "at trade" figures. They load during a sync and show under Settings → Data sources.
 
 ## What changed in 2.30.0
 
