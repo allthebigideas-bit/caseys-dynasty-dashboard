@@ -174,6 +174,16 @@ The sidebar on the left has every page. The top bar has search (players and mana
   - **Who drafts well in this league,** and every past rookie draft with what each pick became.
   - **Prospect board:** FantasyPros dynasty rookie rankings when they cover next year's class. Otherwise, paste any ranking list. You can star your guys.
 
+## What changed in 2.34.0
+- **Fixed: historical values were inflated.** "Values at the time" (Value over time and Trade summary's "at trade") put DynastyProcess values on the dashboard's scale by percentile. DynastyProcess's weekly file ranges from under 400 to nearly 700 rows, so the same player's converted value jumped up or down by a third from week to week with the file's length. It now converts by rank: the Nth most valuable asset that week gets the value of today's Nth most valuable asset. Trade summary's "at trade" numbers will shift a little too.
+- **Value over time:**
+  - A switch between "Since the rookie draft" and "Since the season started". The season view includes every trade this season (matching Trade summary's count) and adds a **Rookie draft** column: players drafted minus the picks used.
+  - Team logos and names at the end of each line, kept apart so they don't overlap; the y-axis fits the data.
+  - The Trades column shows "3 of 8" when some of the season's trades fall before the window, and notes explain why it differs from Trade summary (window, and valued at the time vs today).
+  - A warning if the latest weekly values and today's dashboard values disagree by more than 4%.
+  - Fixed: picks used in this season's draft were matched to the wrong original owner when Sleeper doesn't send the slot map.
+- **Mock draft by need.** The mock pick on the Rookie draft page and the poster now does more than read the board in order: picks 1-3 take the best available, then each team weighs the next seven prospects against its weakest positions (league rank by dynasty value). A team that just traded for a starting QB lets a QB slide. Picks made for need are tagged, e.g. "Need RB · 11th".
+
 ## What changed in 2.33.0
 - **New league art.** Five new banners across the page headers (Trades, Managers, Value over time, Start/Sit, Rising players, Demand, Market) and in the poster headers: Trade summary and the mock draft each get their own. The phone background is the corrected version.
 

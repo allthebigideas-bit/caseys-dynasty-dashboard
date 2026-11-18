@@ -50,3 +50,17 @@ test('weekly series starts at draft-day value and ends at today', () => {
   // Week 2 (day 7): after the trade, before the waiver move: b + c + x at early values.
   assert.equal(r.series[1][1].v, 80 + 50 + 30);
 });
+
+test('rookie draft moves count in their own column', () => {
+  const v = { 'k:2026:1:1': 3000, 'p:R': 4000, 'p:A': 1000 };
+  const r = valueOverTime({
+    teams: [{ rid: 1, keys: ['p:A', 'p:R'], endValue: 5200 }],
+    moves: [{ at: 50, kind: 'draft', sides: { 1: { inn: ['p:R'], out: ['k:2026:1:1'], released: [] } } }],
+    start: 0, now: 100, valueAt: (k) => v[k] || 0, posOf: () => 'WR',
+  });
+  const row = r.rows[1];
+  assert.equal(row.start, 4000);
+  assert.equal(row.draft, 1000);
+  assert.equal(row.lost, 0);
+  assert.equal(row.residual, 5200 - 4000 - 1000);
+});

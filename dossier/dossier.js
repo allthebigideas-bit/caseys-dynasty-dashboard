@@ -9,6 +9,7 @@ import { scoreLine, starterSlots, bestLineup } from '../lib/startsit.js';
 import { DEFAULT_PLAN } from '../lib/engine.js';
 import { fcTrades } from '../lib/fctrades.js';
 import { repairBoard } from '../lib/draft.js';
+import { mockDraft } from '../lib/mock.js';
 import { normName, store, nextWindowStart, sleeperWaiverDay } from '../lib/util.js';
 import { ownTeam } from '../lib/ownteam.js';
 import { quickRefresh } from '../lib/alerts.js';
@@ -773,64 +774,100 @@ const VOT_COLORS = ['#f2b632', '#9d4dff', '#2fc66b', '#4ea1ff', '#f05a5a', '#f2a
 
 function viewValueTime() {
   const m = S.model;
-  const V = m.valueTime;
-  if (!V) return `<div class="card"><h3>Value over time</h3><p class="muted">${esc((S.book && S.book.status && S.book.status.vot && S.book.status.vot.error) || 'Weekly values since the rookie draft load during a sync. Click Sync now.')}</p></div>`;
-  const ui = (S.ui.vot ||= { hi: null, pos: { QB: true, RB: true, WR: true, TE: true, Picks: true }, when: 'end', sort: 'end' });
+  const V0 = m.valueTime;
+  if (!V0) return `<div class="card"><h3>Value over time</h3><p class="muted">${esc((S.book && S.book.status && S.book.status.vot && S.book.status.vot.error) || 'Weekly values since the rookie draft load during a sync. Click Sync now.')}</p></div>`;
+  const ui = (S.ui.vot ||= { hi: null, pos: { QB: true, RB: true, WR: true, TE: true, Picks: true }, when: 'end', sort: 'end', from: 'draft' });
+  const V = ui.from === 'season' && V0.season ? V0.season : V0;
+  const fromSeason = V !== V0;
+  const dstr = (ts) => new Date(ts).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+  const startName = fromSeason ? 'Season start' : 'Draft day';
   const teamsSorted = [...m.teams].sort((a, b) => V.rows[b.rid].end - V.rows[a.rid].end);
   const color = Object.fromEntries([...m.teams].sort((a, b) => a.rid - b.rid).map((t, i) => [t.rid, t.isMe ? '#f2b632' : VOT_COLORS[(i % (VOT_COLORS.length - 1)) + 1]]));
   const sgnK = (v) => `${v > 0 ? '+' : v < 0 ? '−' : ''}${k(Math.abs(v))}`;
   const cls = (v) => (v > 250 ? 'up' : v < -250 ? 'down' : '');
 
-  // -- line chart
-  const W = 1000, H = 300, L = 54, R = 16, T = 14, B = 30;
+  // -- line chart, with each team's logo and name at the end of its line
+  const W = 1000, H = Math.max(360, 60 + m.teams.length * 26), L = 54, R = 178, T = 16, B = 30;
   const all = Object.values(V.series).flat();
-  const t0 = V.draftAt, t1 = V.now;
-  const vmax = Math.max(...all.map((p) => p.v)) * 1.05, vmin = Math.min(...all.map((p) => p.v)) * 0.95;
+  const t0 = V.start, t1 = V.now;
+  const vmax = Math.max(...all.map((p) => p.v)), vmin = Math.min(...all.map((p) => p.v));
+  const padV = (vmax - vmin) * 0.06 || vmax * 0.05;
+  const lo = Math.max(0, vmin - padV), hi = vmax + padV;
   const X = (t) => L + ((t - t0) / Math.max(1, t1 - t0)) * (W - L - R);
-  const Y = (v) => T + (1 - (v - vmin) / Math.max(1, vmax - vmin)) * (H - T - B);
-  const gy = [0, 0.25, 0.5, 0.75, 1].map((f) => vmin + f * (vmax - vmin));
+  const Y = (v) => T + (1 - (v - lo) / Math.max(1, hi - lo)) * (H - T - B);
+  const gy = [0, 0.25, 0.5, 0.75, 1].map((f) => lo + f * (hi - lo));
   const months = [];
   for (let d = new Date(t0); d.getTime() <= t1; d.setMonth(d.getMonth() + 1, 1)) months.push(new Date(d.getFullYear(), d.getMonth(), 1).getTime());
   const grid = gy.map((v) => `<line x1="${L}" x2="${W - R}" y1="${Y(v)}" y2="${Y(v)}" class="vg"/><text x="${L - 8}" y="${Y(v) + 4}" text-anchor="end" class="vt">${k(v)}</text>`).join('')
-    + months.filter((ts) => ts >= t0).map((ts) => `<text x="${X(ts)}" y="${H - 8}" text-anchor="middle" class="vt">${esc(new Date(ts).toLocaleDateString(undefined, { month: 'short' }))}</text>`).join('');
-  const lines = [...m.teams].sort((a, b) => (a.rid === ui.hi || a.isMe) - (b.rid === ui.hi || b.isMe)).map((t) => {
+    + months.filter((ts) => ts >= t0).map((ts) => `<text x="${X(ts)}" y="${H - 8}" text-anchor="middle" class="vt">${esc(new Date(ts).toLocaleDateString(undefined, { month: 'short' }))}</text>`).join('')
+    + (fromSeason ? `<line x1="${X(V0.start)}" x2="${X(V0.start)}" y1="${T}" y2="${H - B}" class="vdraft"/><text x="${X(V0.start) + 4}" y="${T + 10}" class="vt">Rookie draft</text>` : '');
+  const strong = (t) => ui.hi === t.rid || (ui.hi == null && t.isMe);
+  const lines = [...m.teams].sort((a, b) => strong(a) - strong(b)).map((t) => {
     const pts = V.series[t.rid];
     const dim = ui.hi != null && ui.hi !== t.rid;
-    const strong = ui.hi === t.rid || (ui.hi == null && t.isMe);
+    const st = strong(t);
     const d = pts.map((p, i) => `${i ? 'L' : 'M'}${X(p.at).toFixed(1)},${Y(p.v).toFixed(1)}`).join('');
-    const last = pts[pts.length - 1];
-    return `<g class="vline${dim ? ' dim' : ''}" data-action="votHi" data-rid="${t.rid}"><path d="${d}" stroke="${color[t.rid]}" stroke-width="${strong ? 3.5 : 2}" fill="none"/>${pts.map((p) => `<circle cx="${X(p.at).toFixed(1)}" cy="${Y(p.v).toFixed(1)}" r="${strong ? 3.5 : 2.2}" fill="${color[t.rid]}"><title>${esc(t.name)} · ${esc(p.today ? 'today' : new Date(p.at).toLocaleDateString())}: ${k(p.v)}</title></circle>`).join('')}${strong ? `<text x="${X(last.at) - 4}" y="${Y(last.v) - 8}" text-anchor="end" class="vlab" fill="${color[t.rid]}">${esc(t.name)}</text>` : ''}</g>`;
+    return `<g class="vline${dim ? ' dim' : ''}" data-action="votHi" data-rid="${t.rid}"><path d="${d}" stroke="${color[t.rid]}" stroke-width="${st ? 3.5 : 2}" fill="none"/>${pts.map((p) => `<circle cx="${X(p.at).toFixed(1)}" cy="${Y(p.v).toFixed(1)}" r="${st ? 3.2 : 2}" fill="${color[t.rid]}"><title>${esc(t.name)} · ${esc(p.today ? 'today' : new Date(p.at).toLocaleDateString())}: ${k(p.v)}</title></circle>`).join('')}</g>`;
   }).join('');
-  const legend = teamsSorted.map((t) => `<button class="vleg${ui.hi === t.rid ? ' on' : ''}" data-action="votHi" data-rid="${t.rid}"><i style="background:${color[t.rid]}"></i>${esc(t.name)}</button>`).join('');
-  const chart = `<div class="card"><h3>Team value since the rookie draft</h3>
-    <svg class="votchart" viewBox="0 0 ${W} ${H}" role="img" aria-label="Each team's value by week since the rookie draft">${grid}${lines}</svg>
-    <div class="vlegs">${legend}${ui.hi != null ? '<button class="vleg" data-action="votHi" data-rid="">Show all</button>' : ''}</div>
-    <p class="faint small" style="margin:6px 0 0">Weekly points value each team's roster that week with that week's DynastyProcess values, converted to the KTC scale (the same as Trade summary's "at trade"). ${V.endSource === 'book' ? 'The last point is today\'s value.' : 'Today\'s values didn\'t load, so the last point uses the latest weekly values.'} Click a team to pick it out.</p></div>`;
+  // End labels: logo + name, nudged apart so they never overlap.
+  const ends = m.teams.map((t) => { const last = V.series[t.rid][V.series[t.rid].length - 1]; return { t, y: Y(last.v), ly: Y(last.v), x: X(last.at) }; }).sort((a, b) => a.y - b.y);
+  const GAP = 24;
+  const top = T + 10, bot = H - B - 4, gapN = Math.min(GAP, (bot - top) / Math.max(1, ends.length - 1));
+  for (let i = 0; i < ends.length; i++) ends[i].ly = Math.max(ends[i].ly, i ? ends[i - 1].ly + gapN : top);
+  for (let i = ends.length - 1; i >= 0; i--) ends[i].ly = Math.min(ends[i].ly, i < ends.length - 1 ? ends[i + 1].ly - gapN : bot);
+  const lx = W - R + 22;
+  const labels = ends.map(({ t, y, ly, x }) => {
+    const dim = ui.hi != null && ui.hi !== t.rid;
+    const url = avatarUrl(t);
+    const ini = `<circle cx="${lx + 10}" cy="${ly}" r="10" fill="${color[t.rid]}"/><text x="${lx + 10}" y="${ly + 4}" text-anchor="middle" class="vini">${esc((t.name || '?')[0].toUpperCase())}</text>`;
+    const logo = ini + (url ? `<image href="${esc(url)}" x="${lx}" y="${ly - 10}" width="20" height="20" clip-path="url(#vclip)" preserveAspectRatio="xMidYMid slice"/>` : '');
+    return `<g class="vend${dim ? ' dim' : ''}" data-action="votHi" data-rid="${t.rid}"><path d="M${x + 3},${y} L${lx - 6},${ly}" stroke="${color[t.rid]}" stroke-width="1.2" fill="none" opacity=".7"/><circle cx="${lx + 10}" cy="${ly}" r="11.5" fill="none" stroke="${color[t.rid]}" stroke-width="2"/>${logo}<text x="${lx + 28}" y="${ly + 4}" class="vlab${strong(t) ? ' on' : ''}">${esc(t.name.length > 13 ? t.name.slice(0, 12) + '…' : t.name)}</text></g>`;
+  }).join('');
+  const defs = '<defs><clipPath id="vclip" clipPathUnits="objectBoundingBox"><circle cx=".5" cy=".5" r=".5"/></clipPath></defs>';
+  const fromSeg = V0.season ? `<span class="tseg2"><button class="${fromSeason ? '' : 'on'}" data-action="votFrom" data-from="draft">Since the rookie draft · ${esc(dstr(V0.start))}</button><button class="${fromSeason ? 'on' : ''}" data-action="votFrom" data-from="season">Since the season started · ${esc(dstr(V0.season.start))}</button></span>` : '';
+  const weeklyTot = m.teams.reduce((s2, t) => s2 + (V.rows[t.rid].weeklyNow || 0), 0), endTot = m.teams.reduce((s2, t) => s2 + V.rows[t.rid].end, 0);
+  const gap = endTot ? weeklyTot / endTot - 1 : 0;
+  const chart = `<div class="card"><div class="sec-h"><h3 style="margin:0">Team value, week by week</h3>${fromSeg}</div>
+    <svg class="votchart" viewBox="0 0 ${W} ${H}" role="img" aria-label="Each team's value by week">${defs}${grid}${lines}${labels}</svg>
+    <p class="faint small" style="margin:6px 0 0">Each week values that week's roster with that week's DynastyProcess values, put on the dashboard's scale by rank (the Nth most valuable asset that week gets the value of today's Nth most valuable asset). The last point is today's dashboard value.${V.endSource === 'book' ? '' : ' Today\'s values didn\'t load, so the last point uses the latest weekly values.'}${Math.abs(gap) > 0.04 && V.endSource === 'book' ? ` Heads up: the latest weekly values put the league ${Math.abs(Math.round(gap * 100))}% ${gap > 0 ? 'above' : 'below'} today's dashboard values, so the last step of every line includes that difference.` : ''} Click a team to pick it out.</p></div>`;
 
   // -- bridge table
   const bridgeCols = [
-    ['start', 'Draft day', 'Roster and picks just after this season\'s rookie draft'],
-    ['trades', 'Trades', 'Value received minus value given, each trade valued that week'],
+    ['start', startName, fromSeason ? 'Roster and picks at the start of the league season' : 'Roster and picks just after this season\'s rookie draft'],
+    ['trades', 'Trades', 'Value received minus value given, each trade valued the week it happened'],
+    ...(fromSeason ? [['draft', 'Rookie draft', 'Players drafted minus the value of the picks used, the week of the draft']] : []),
     ['added', 'Waivers added', 'Players added off waivers or free agency, valued that week'],
     ['lost', 'Value lost', 'Players dropped or released, valued that week'],
     ['residual', 'Appreciation', 'What\'s left: players and picks gaining or losing value while held'],
     ['end', 'Today', 'Today\'s dynasty value, the same as the rest of the dashboard'],
-    ['change', 'Change', 'Today minus draft day'],
+    ['change', 'Change', `Today minus ${startName.toLowerCase()}`],
   ];
-  const rows = [...m.teams].sort((a, b) => { const x = V.rows[a.rid][ui.sort], y = V.rows[b.rid][ui.sort]; return ui.sort === 'lost' ? x - y : y - x; });
+  const sortKey = bridgeCols.some(([key]) => key === ui.sort) ? ui.sort : 'end';
+  const rows = [...m.teams].sort((a, b) => { const x = V.rows[a.rid][sortKey], y = V.rows[b.rid][sortKey]; return sortKey === 'lost' ? x - y : y - x; });
   const tot = (key) => m.teams.reduce((s2, t) => s2 + V.rows[t.rid][key], 0);
-  const cell = (key, v, r) => {
+  const allT = V0.allTrades || {};
+  const cell = (key, v, r, t) => {
     if (key === 'start' || key === 'end') return `<td class="num"><b>${k(v)}</b></td>`;
     if (key === 'lost') return `<td class="num ${v > 250 ? 'down' : ''}">${v ? `−${k(v)}` : '<span class="faint">0</span>'}${r && r.lostCount ? `<div class="faint small">${r.lostCount} player${r.lostCount === 1 ? '' : 's'}</div>` : ''}</td>`;
     if (key === 'added') return `<td class="num ${cls(v)}">${v ? `+${k(v)}` : '<span class="faint">0</span>'}${r && r.addCount ? `<div class="faint small">${r.addCount} add${r.addCount === 1 ? '' : 's'}</div>` : ''}</td>`;
-    if (key === 'trades') return `<td class="num ${cls(v)}">${r && !r.tradeCount ? '<span class="faint">—</span>' : sgnK(v)}${r && r.tradeCount ? `<div class="faint small">${r.tradeCount} trade${r.tradeCount === 1 ? '' : 's'}</div>` : ''}</td>`;
+    if (key === 'draft') return `<td class="num ${cls(v)}">${r && !r.draftCount ? '<span class="faint">—</span>' : sgnK(v)}${r && r.draftCount ? `<div class="faint small">${r.draftCount} pick${r.draftCount === 1 ? '' : 's'}</div>` : ''}</td>`;
+    if (key === 'trades') {
+      const all2 = t ? allT[t.rid] || 0 : 0;
+      return `<td class="num ${cls(v)}">${r && !r.tradeCount ? '<span class="faint">—</span>' : sgnK(v)}${r ? `<div class="faint small">${r.tradeCount} trade${r.tradeCount === 1 ? '' : 's'}${all2 > r.tradeCount ? ` <span title="Trade summary counts every trade this season">of ${all2}</span>` : ''}</div>` : ''}</td>`;
+    }
     return `<td class="num ${cls(v)}"><b>${sgnK(v)}</b>${key === 'change' && r && r.start ? `<div class="faint small">${v >= 0 ? '+' : ''}${Math.round((v / r.start) * 100)}%</div>` : ''}</td>`;
   };
+  const anyEarlier = m.teams.some((t) => (allT[t.rid] || 0) > V.rows[t.rid].tradeCount);
   const bridge = `<div class="card" style="margin-top:14px"><h3>Where each team's value came from</h3>
-    <div class="scroll"><table class="t vot"><thead><tr><th>Team</th>${bridgeCols.map(([key, l, tip]) => `<th class="num sortable${ui.sort === key ? ' on' : ''}" data-action="votSort" data-key="${key}" title="${esc(tip)}">${l}${ui.sort === key ? ' ↓' : ''}</th>`).join('')}</tr></thead>
-    <tbody>${rows.map((t) => { const r = V.rows[t.rid]; return `<tr class="${t.isMe ? 'me' : ''}${ui.hi === t.rid ? ' hl' : ''}"><td><div class="who"><i class="vdot" style="background:${color[t.rid]}"></i>${teamAvatar(t)}${tlink(t.rid)}</div></td>${bridgeCols.map(([key]) => cell(key, r[key], r)).join('')}</tr>`; }).join('')}
+    <div class="scroll"><table class="t vot"><thead><tr><th>Team</th>${bridgeCols.map(([key, l, tip]) => `<th class="num sortable${sortKey === key ? ' on' : ''}" data-action="votSort" data-key="${key}" title="${esc(tip)}">${l}${sortKey === key ? ' ↓' : ''}</th>`).join('')}</tr></thead>
+    <tbody>${rows.map((t) => { const r = V.rows[t.rid]; return `<tr class="${t.isMe ? 'me' : ''}${ui.hi === t.rid ? ' hl' : ''}"><td><div class="who"><i class="vdot" style="background:${color[t.rid]}"></i>${teamAvatar(t)}${tlink(t.rid)}</div></td>${bridgeCols.map(([key]) => cell(key, r[key], r, t)).join('')}</tr>`; }).join('')}
       <tr class="tot"><td><b>League</b></td>${bridgeCols.map(([key]) => cell(key, tot(key))).join('')}</tr></tbody></table></div>
-    <p class="faint small" style="margin:8px 0 0">Draft day + Trades + Waivers added − Value lost + Appreciation = Today. Trades here are raw values at the time, without KTC's package adjustment, so they can differ a little from Trade summary.${Object.keys(V.mismatch).length ? ` Some moves are missing from Sleeper's list for ${Object.keys(V.mismatch).map((rid) => esc(tname(Number(rid)))).join(', ')}, so their appreciation also carries those players.` : ''} Rookie draft: ${esc(new Date(V.draftAt).toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' }))}.</p></div>`;
+    <div class="faint small" style="margin:8px 0 0;display:grid;gap:4px">
+      <div>${startName} + Trades${fromSeason ? ' + Rookie draft' : ''} + Waivers added − Value lost + Appreciation = Today.</div>
+      <div><b>Why Trades differs from Trade summary:</b> ${anyEarlier && !fromSeason ? `this window starts at the rookie draft (${esc(dstr(V0.start))}), so trades made before it aren't here ("3 of 8" means 3 trades since the draft out of 8 this season); switch to "Since the season started" to include them. ` : ''}Trade summary's "Net value now" values every asset at today's values, so a trade that has since paid off shows its full gain there. Here each trade is valued the week it happened, and any gain since then shows up in Appreciation.</div>
+      <div><b>Value lost</b> is what players were worth the week they were dropped. Teams that churn the waiver wire add and lose a lot; the two mostly cancel out.</div>
+      ${Object.keys(V.mismatch).length ? `<div>Some moves are missing from Sleeper's list for ${Object.keys(V.mismatch).map((rid) => esc(tname(Number(rid)))).join(', ')}, so their Appreciation also carries those players.</div>` : ''}
+    </div></div>`;
 
   // -- value by position
   const POS = ['QB', 'RB', 'WR', 'TE', 'Picks'];
@@ -841,18 +878,18 @@ function viewValueTime() {
   const byTot = [...m.teams].sort((a, b) => totalOn(b) - totalOn(a));
   const maxTot = Math.max(1, ...byTot.map(totalOn));
   const rank = (t, p) => 1 + m.teams.filter((o) => (posOf(o)[p] || 0) > (posOf(t)[p] || 0)).length;
-  const bars = byTot.map((t) => `<div class="pbar-row${t.isMe ? ' me' : ''}"><div class="pbar-name">${esc(t.name)}</div><div class="pbar">${on.map((p) => { const v = posOf(t)[p] || 0; return v ? `<i style="width:${((v / maxTot) * 100).toFixed(2)}%;background:${posColor[p]}" title="${esc(t.name)} ${p}: ${k(v)}"></i>` : ''; }).join('')}</div><div class="pbar-tot">${k(totalOn(t))}</div></div>`).join('');
+  const bars = byTot.map((t) => `<div class="pbar-row${t.isMe ? ' me' : ''}"><div class="pbar-name">${teamAvatar(t)}<span>${esc(t.name)}</span></div><div class="pbar">${on.map((p) => { const v = posOf(t)[p] || 0; return v ? `<i style="width:${((v / maxTot) * 100).toFixed(2)}%;background:${posColor[p]}" title="${esc(t.name)} ${p}: ${k(v)}"></i>` : ''; }).join('')}</div><div class="pbar-tot">${k(totalOn(t))}</div></div>`).join('');
   const toggles = `<div class="row" style="gap:6px;flex-wrap:wrap">${POS.map((p) => `<button class="chip-t${ui.pos[p] ? ' on' : ''}" data-action="votPos" data-pos="${p}"><i style="background:${posColor[p]}"></i>${p}</button>`).join('')}
-    <span style="flex:1"></span><span class="tseg2"><button class="${ui.when === 'start' ? 'on' : ''}" data-action="votWhen" data-when="start">Draft day</button><button class="${ui.when === 'end' ? 'on' : ''}" data-action="votWhen" data-when="end">Today</button></span></div>`;
-  const posTable = `<div class="scroll" style="margin-top:14px"><table class="t"><thead><tr><th>Team</th>${POS.map((p) => `<th class="num">${p}</th>`).join('')}<th class="num">Total</th><th class="num">vs draft day</th></tr></thead><tbody>
+    <span style="flex:1"></span><span class="tseg2"><button class="${ui.when === 'start' ? 'on' : ''}" data-action="votWhen" data-when="start">${startName}</button><button class="${ui.when === 'end' ? 'on' : ''}" data-action="votWhen" data-when="end">Today</button></span></div>`;
+  const posTable = `<div class="scroll" style="margin-top:14px"><table class="t"><thead><tr><th>Team</th>${POS.map((p) => `<th class="num">${p}</th>`).join('')}<th class="num">Total</th><th class="num">vs ${esc(startName.toLowerCase())}</th></tr></thead><tbody>
     ${byTot.map((t) => { const pv = posOf(t); const total = POS.reduce((s2, p) => s2 + (pv[p] || 0), 0); const other = V.rows[t.rid][ui.when === 'start' ? 'endByPos' : 'startByPos'] || {}; const otherTot = POS.reduce((s2, p) => s2 + (other[p] || 0), 0); const diff = ui.when === 'end' ? total - otherTot : otherTot - total;
       return `<tr class="${t.isMe ? 'me' : ''}"><td><div class="who">${teamAvatar(t)}${tlink(t.rid)}</div></td>${POS.map((p) => `<td class="num${ui.pos[p] ? '' : ' faint'}">${k(pv[p] || 0)}<div class="faint small">${ordinal(rank(t, p))}</div></td>`).join('')}<td class="num"><b>${k(total)}</b></td><td class="num ${cls(diff)}">${sgnK(diff)}</td></tr>`; }).join('')}
     </tbody></table></div>`;
-  const posCard = `<div class="sec-h" style="margin-top:22px"><h2>Value by position</h2><span class="muted small">${ui.when === 'start' ? 'Rosters just after the rookie draft' : 'Today'}</span></div>
+  const posCard = `<div class="sec-h" style="margin-top:22px"><h2>Value by position</h2><span class="muted small">${ui.when === 'start' ? (fromSeason ? 'Rosters at the start of the season' : 'Rosters just after the rookie draft') : 'Today'}</span></div>
     <div class="card">${toggles}<div class="pbars" style="margin-top:14px">${bars}</div>${posTable}
-    <p class="faint small" style="margin:8px 0 0">Kickers and defenses aren't counted. Small numbers are each team's league rank at that position. "vs draft day" is today's total minus the draft-day total for the same positions.</p></div>`;
+    <p class="faint small" style="margin:8px 0 0">Kickers and defenses aren't counted. Small numbers are each team's league rank at that position.</p></div>`;
 
-  return `<div class="sec-h"><h2>Value over time</h2><span class="muted small">From this season's rookie draft to today</span></div>${chart}${bridge}${posCard}`;
+  return `<div class="sec-h"><h2>Value over time</h2><span class="muted small">${fromSeason ? `From the start of the league season (${esc(dstr(V.start))}) to today` : `From this season's rookie draft (${esc(dstr(V.start))}) to today`}</span></div>${chart}${bridge}${posCard}`;
 }
 
 function viewSummary() {
@@ -1570,6 +1607,17 @@ function viewIncoming() {
 
 // ---- rookie draft ------------------------------------------------------------------------
 
+// Mock draft for next year's order: board talent weighed against each team's weakest rooms (lib/mock.js).
+function mockFor(m, picksY, board) {
+  if (!board) return {};
+  const posRank = {};
+  for (const t of m.teams) { const row = (m.positional.teams || {})[t.rid] || {}; posRank[t.rid] = Object.fromEntries(['QB', 'RB', 'WR', 'TE'].map((pos) => [pos, row[pos] ? row[pos].dynRank : null])); }
+  const order = picksY.filter((p) => p.overall).map((p) => ({ rid: p.owner, overall: p.overall }));
+  const res = mockDraft({ order, board: board.players, posRank, teams: m.teams.length });
+  return Object.fromEntries(order.map((o, i) => [o.overall, res[i]]));
+}
+const mockWhy = (x) => (!x || !x.player ? '' : x.reason === 'bpa' ? 'Best available' : x.reason === 'need' ? `Need: ${x.needPos}${x.needRank ? ` (${ordinal(x.needRank)} in league)` : ''}` : `Fit: ${x.needPos}${x.needRank ? ` (${ordinal(x.needRank)})` : ''}`);
+
 function draftBoard() {
   if (S.draftBoard && S.draftBoard.players && S.draftBoard.players.length) return { ...S.draftBoard, mine: true };
   if (S.draftFp && S.draftFp.players && S.draftFp.players.length) return S.draftFp;
@@ -1712,16 +1760,18 @@ function viewDraft() {
   if (dg.length >= 3) tips.push({ dir: 'mid', text: `Best drafters in this league so far: ${dg.slice(0, 2).map((t) => tname(t.rid)).join(', ')}. Weakest: ${dg.slice(-2).map((t) => tname(t.rid)).join(', ')}. Players drafted by weak drafters who are falling are often cheap.` });
 
   // draft order table
+  const mock = mockFor(m, picksY, board);
   const orderRow = (p) => {
     const o = team(p.owner);
-    const proj = board && p.overall ? board.players[p.overall - 1] : null;
+    const mk = p.overall ? mock[p.overall] : null;
+    const proj = mk ? mk.player : null;
     const h = p.overall ? bucketFor(p.overall) : null;
     return `<tr class="${p.owner === m.me ? 'me' : ''}">
       <td class="num">${p.overall ? `${p.round}.${String(p.slot).padStart(2, '0')}` : roundName(p.round)}</td>
       <td><div class="who">${teamAvatar(o)}<div>${tlink(p.owner)}<div class="meta">${posture(o)}${p.orig !== p.owner ? ` via ${esc(tname(p.orig))}` : ''}</div></div></div></td>
       <td class="num">${team(p.orig) ? `${team(p.orig).w}-${team(p.orig).l}` : ''}</td>
       <td class="num">${team(p.orig) ? `${Math.round(team(p.orig).maxPf)} <span class="faint">(${Math.round(team(p.orig).maxPfProj)})</span>` : ''}</td>
-      <td>${proj ? `${posTag(proj.pos)} ${esc(proj.name)}${S.draftStars[normName(proj.name)] ? ' ★' : ''}` : '<span class="faint">—</span>'}</td>
+      <td>${proj ? `${posTag(proj.pos)} ${esc(proj.name)}${S.draftStars[normName(proj.name)] ? ' ★' : ''}<div class="faint small">${esc(mockWhy(mk))}${mk.boardRank !== p.overall ? ` · board #${mk.boardRank}` : ''}</div>` : '<span class="faint">—</span>'}</td>
       <td class="num">${h && h.rate != null ? pct(h.rate) : '—'}</td>
       <td class="num">${k(p.v)}</td>
     </tr>`;
@@ -1762,8 +1812,8 @@ function viewDraft() {
         ${capitalCard()}
         ${outWithOldCard()}
         <div class="card"><h3>How to win this draft</h3><ul class="ev">${tips.map((t) => `<li class="d-${t.dir}">${esc(t.text)}</li>`).join('')}</ul></div>
-        <div class="card"><div class="sec-h"><h3 style="margin:0">${y} draft order, rounds 1-2</h3><button class="btn sm primary" data-action="exportMock">${icon('download')}Export mock draft</button></div><p class="lede">${m.draftOrderMethod === 'standings' ? 'Order from the playoff simulation: worst projected finish picks first.' : m.draftOrderMethod === 'maxpf' ? 'Non-playoff teams by projected max PF (lowest first: best lineup each week so far, plus the same weekly pace for the rest of the season), then playoff teams by projected finish.' : 'Every team by projected max PF, lowest first.'} Change this in Settings. "Board" is the prospect at that spot on ${board ? esc(board.mine ? 'your board' : board.source) : 'a prospect board (add one below)'}. "Starter rate" is how often that slot produced a weekly starter in past classes.</p>
-          <div class="scroll"><table class="t"><thead><tr><th>Pick</th><th>Owner</th><th class="num">Record</th><th class="num">Max PF (proj.)</th><th>Board</th><th class="num">Starter rate</th><th class="num">Value</th></tr></thead><tbody>${r12.map(orderRow).join('')}</tbody></table></div>
+        <div class="card"><div class="sec-h"><h3 style="margin:0">${y} draft order, rounds 1-2</h3><button class="btn sm primary" data-action="exportMock">${icon('download')}Export mock draft</button></div><p class="lede">${m.draftOrderMethod === 'standings' ? 'Order from the playoff simulation: worst projected finish picks first.' : m.draftOrderMethod === 'maxpf' ? 'Non-playoff teams by projected max PF (lowest first: best lineup each week so far, plus the same weekly pace for the rest of the season), then playoff teams by projected finish.' : 'Every team by projected max PF, lowest first.'} Change this in Settings. "Mock pick" walks ${board ? esc(board.mine ? 'your board' : board.source) : 'a prospect board (add one below)'} in order: the first three picks take the best player available, then each team weighs the next few prospects against its weakest positions (league rank by dynasty value), so a team that's stacked at a position lets that player slide. "Starter rate" is how often that slot produced a weekly starter in past classes.</p>
+          <div class="scroll"><table class="t"><thead><tr><th>Pick</th><th>Owner</th><th class="num">Record</th><th class="num">Max PF (proj.)</th><th>Mock pick</th><th class="num">Starter rate</th><th class="num">Value</th></tr></thead><tbody>${r12.map(orderRow).join('')}</tbody></table></div>
           <a class="link small" href="#picks">Every pick, ${m.pickSeasons.join(' and ')}</a></div>
         <div class="card"><div class="sec-h"><h3 style="margin:0">${y} prospect board</h3><div class="row"><span class="muted small">${board ? (board.mine ? `Your board, saved ${esc(dateStr(board.at))}` : `${esc(board.source)}`) : ''}</span><button class="btn sm" data-action="boardEdit">${board && board.mine ? 'Edit board' : 'Paste a board'}</button>${board && board.mine ? '<button class="btn sm" data-action="boardClear">Use FantasyPros</button>' : ''}</div></div>
           ${S.ui.boardEdit ? `<p class="lede">Paste any ranking, one player per line. Works with CBS Sports' prospect rankings copied straight from the page (defensive players are skipped), or simple lines like "1. Jeremiah Smith WR Ohio State". Copy it from your favourite site's ${y} rookie or devy rankings. Add "Tier 2" on a line to keep tiers.</p><textarea class="note" id="board-text" style="min-height:220px">${esc(board && board.mine ? board.players.map((p) => `${p.srcRank || p.rank} ${p.name} ${p.school || ''}${p.cls ? ` ${p.cls}` : ''} ${p.pos}${p.posRank ? ` ${p.posRank}` : ''}${p.ht ? ` ${p.ht}` : ''}${p.wt ? ` ${p.wt}` : ''}${p.tier ? ` Tier ${p.tier}` : ''}`).join('\n') : '')}</textarea><div class="row" style="margin-top:8px"><button class="btn primary sm" data-action="boardSave">Save board</button><button class="btn sm" data-action="boardEdit">Cancel</button></div>` : ''}
@@ -3733,6 +3783,7 @@ function mockDraftPoster() {
   const board = draftBoard();
   const picksY = m.picks.filter((p) => p.season === y).map((p) => ({ ...p, overall: p.slot ? (p.round - 1) * n + p.slot : null })).sort((a, b) => (a.overall || 999) - (b.overall || 999));
   const rounds = [...new Set(picksY.map((p) => p.round))].sort((a, b) => a - b);
+  const mock = mockFor(m, picksY, board);
   const method = m.draftOrderMethod === 'standings' ? 'Order: projected finish, worst picks first' : m.draftOrderMethod === 'maxpf' ? 'Order: non-playoff teams by projected max PF, then playoff teams' : 'Order: projected max PF, lowest first';
   return {
     banner: 4,
@@ -3743,17 +3794,19 @@ function mockDraftPoster() {
     rounds: rounds.map((r) => ({
       label: `Round ${r}`,
       picks: picksY.filter((p) => p.round === r).map((p) => {
-        const proj = board && p.overall ? board.players[p.overall - 1] : null;
+        const mk = p.overall ? mock[p.overall] : null;
+        const proj = mk ? mk.player : null;
         return {
           pick: p.overall ? `${p.round}.${String(p.slot).padStart(2, '0')}` : roundName(p.round),
           owner: tname(p.owner), avatar: avatarUrl(team(p.owner)), isMe: p.owner === m.me,
           via: p.orig !== p.owner ? tname(p.orig) : '',
           player: proj ? { name: proj.name, pos: proj.pos, school: proj.school || '' } : null,
+          why: mk && mk.reason !== 'bpa' ? `${mk.reason === 'need' ? 'Need' : 'Fit'} ${mk.needPos}${mk.needRank ? ` · ${ordinal(mk.needRank)}` : ''}` : '',
         };
       }),
     })),
     notes: [
-      board ? `Prospects are taken straight down ${board.mine ? 'your own board' : board.source}: the player at that overall spot, so it shows who's likely there, not who each manager would pick.` : `No ${y} prospect board yet, so picks show "Best available". Add a board on the Rookie draft page.`,
+      board ? `Prospects come from ${board.mine ? 'your own board' : board.source}. Picks 1-3 take the best available; after that each team weighs the next few prospects against its weakest rooms ("Need RB · 11th" = 11th-best RB room in the league).` : `No ${y} prospect board yet, so picks show "Best available". Add a board on the Rookie draft page.`,
       'Slots are projected from the playoff simulation and change week to week until the season ends.',
     ],
   };
@@ -4284,6 +4337,7 @@ const actions = {
   votSort(el) { S.ui.vot.sort = el.dataset.key; render(); },
   votPos(el) { const p = el.dataset.pos; S.ui.vot.pos[p] = !S.ui.vot.pos[p]; if (!Object.values(S.ui.vot.pos).some(Boolean)) S.ui.vot.pos[p] = true; render(); },
   votWhen(el) { S.ui.vot.when = el.dataset.when; render(); },
+  votFrom(el) { S.ui.vot.from = el.dataset.from; render(); },
   exportSummary(el) { return exportPoster(el, tradeSummaryPoster); },
   exportSeason(el) { return exportPoster(el, seasonPoster); },
   exportMock(el) { return exportMock(el); },

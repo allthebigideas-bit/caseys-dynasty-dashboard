@@ -399,7 +399,7 @@ export async function drawMockDraft(spec) {
     lx += 74;
   }
   ctx.textAlign = 'left'; ctx.fillStyle = MUTED; ctx.font = font(19, 600);
-  ctx.fillText('Gold border = your pick   ·   "via" = original owner of a traded pick', lx + 18, y + 31);
+  ctx.fillText('Gold border = your pick   ·   "via" = original owner of a traded pick   ·   "Need RB · 11th" = picked for a weak room (11th-best RBs in the league)', lx + 18, y + 31);
   y += LEGEND;
 
   for (const band of bands) {
@@ -445,17 +445,29 @@ export async function drawMockDraft(spec) {
           ctx.fillStyle = FAINT; ctx.font = font(24, 700); ctx.textAlign = 'left';
           ctx.fillText('Best available', tx, cy + 32);
         }
+        // why: need / fit tag, right-aligned on the owner line
+        let whyW = 0;
+        if (pk.why) {
+          ctx.font = font(16, 800);
+          whyW = ctx.measureText(pk.why).width + 20;
+          const wx = cx2 + cw - 16 - whyW, wy = cy + CARD - 44;
+          ctx.fillStyle = 'rgba(242,182,50,.16)'; rr(ctx, wx, wy, whyW, 28, 14); ctx.fill();
+          ctx.strokeStyle = 'rgba(242,182,50,.55)'; ctx.lineWidth = 1.5; rr(ctx, wx, wy, whyW, 28, 14); ctx.stroke();
+          ctx.fillStyle = GOLD2; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+          ctx.fillText(pk.why, wx + whyW / 2, wy + 15);
+          whyW += 12;
+        }
         // owner line
         const ad = 36, oy = cy + CARD - 18 - ad / 2 - 8;
         avatar(ctx, imgs[pk.avatar || ''], pk.owner, tx, oy, ad);
         ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
         ctx.fillStyle = pk.isMe ? GOLD2 : MUTED; ctx.font = font(21, 700);
-        const on = fitText(ctx, pk.owner, tw - ad - 12);
+        const on = fitText(ctx, pk.owner, tw - ad - 12 - whyW);
         ctx.fillText(on, tx + ad + 12, oy + ad / 2 + 1);
         if (pk.via) {
           const ow = ctx.measureText(on).width;
           ctx.font = font(17, 600); ctx.fillStyle = FAINT;
-          const room = tw - ad - 12 - ow - 12;
+          const room = tw - ad - 12 - ow - 12 - whyW;
           if (room > 50) ctx.fillText(fitText(ctx, `via ${pk.via}`, room), tx + ad + 12 + ow + 12, oy + ad / 2 + 2);
         }
       });
