@@ -173,6 +173,10 @@ The sidebar on the left has every page. The top bar has search (players and mana
   - **Who drafts well in this league,** and every past rookie draft with what each pick became.
   - **Prospect board:** FantasyPros dynasty rookie rankings when they cover next year's class. Otherwise, paste any ranking list. You can star your guys.
 
+## What changed in 2.29.2
+
+- **Rookie draft hit rates were missing whole classes.** DynastyProcess left `draft_year` as "NA" for that year's rookies in its summer 2023 snapshots (and the 2025 and 2026 ones), so the 2023 class (Bijan Robinson, Jahmyr Gibbs, Jaxon Smith-Njigba, Sam LaPorta, Dalton Kincaid) silently dropped out of "What each slot has produced" and the rounds 1-2 tiles, and the 2025-26 classes out of the position-mix chart. Missing draft years now come from today's file. With 1QB values: TE 56% of 9 (was 60% of 5), QB 43% of 14, RB 29% of 38, WR 32% of 59; 1.01-1.03 80% of 15 (was 75% of 12).
+
 ## What changed in 2.29.1
 
 - Fixed: on manager pages, the value-weighted age in "Roster value by career phase" sat below the ring, on top of "Rising". The small split donuts added for Most lopsided in 2.24 reused the ring's `donut` class and overrode its layout; they're now `sdonut`.
