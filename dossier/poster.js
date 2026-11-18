@@ -571,3 +571,126 @@ export async function downloadCanvas(c, file) {
   setTimeout(() => URL.revokeObjectURL(url), 5000);
   return c;
 }
+
+// ---- team ledger -----------------------------------------------------------------------------
+
+/**
+ * One team's master ledger: the bridge from the starting value to today, then
+ * every trade, rookie pick, waiver move and asset change behind it.
+ *
+ * spec = {
+ *   file, title, eyebrow, subtitle, banner,
+ *   team: { name, avatar },
+ *   bridge: [{ label, text, color, sub }],             // Start, Trades, …, Today
+ *   sections: [{ title, total: { text, color }, cols: [{ label, w, align }],
+ *                rows: [{ cells: [{ text, color, bold }], faint }], foot: [{ label, text, color }] }],
+ *   notes: [string]
+ * }
+ */
+export async function drawLedger(spec) {
+  const art = await loadArt();
+  const teamImg = await loadRemote(spec.team && spec.team.avatar);
+  const W = 2000;
+  const ROWH = 36, SHEAD = 64, CHEAD = 40, FOOTH = 34, GAPS = 30;
+  const layout = spec.sections.map((s) => {
+    const split = s.rows.length > 16 && s.split !== false ? 2 : 1;
+    const per = Math.ceil(s.rows.length / split) || 1;
+    const h = SHEAD + CHEAD + per * ROWH + (s.foot || []).length * FOOTH + 24;
+    return { s, split, per, h };
+  });
+  const HEADER = 430, BRIDGE = 190, FOOT = 250;
+  const notesH = 30 + (spec.notes || []).length * 30;
+  const H = HEADER + BRIDGE + layout.reduce((a, l) => a + l.h + GAPS, 0) + notesH + FOOT;
+  const c = document.createElement('canvas');
+  c.width = W; c.height = H;
+  const ctx = c.getContext('2d');
+  drawFrame(ctx, W, H, HEADER, FOOT, spec, art);
+
+  // team badge on the header art
+  if (spec.team) {
+    const bx = PAD, by = HEADER - 120;
+    ctx.fillStyle = 'rgba(20,7,42,.82)'; rr(ctx, bx, by, 520, 92, 46); ctx.fill();
+    ctx.strokeStyle = 'rgba(242,182,50,.7)'; ctx.lineWidth = 2; rr(ctx, bx, by, 520, 92, 46); ctx.stroke();
+    avatar(ctx, teamImg, spec.team.name, bx + 14, by + 12, 68);
+    ctx.fillStyle = TEXT; ctx.font = font(34, 900); ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+    ctx.fillText(fitText(ctx, spec.team.name, 400), bx + 98, by + 46);
+  }
+
+  // bridge: Start → each step → Today
+  let y = HEADER + 20;
+  const n = spec.bridge.length, gap = 34, bw = (W - PAD * 2 - gap * (n - 1)) / n, bh = 130;
+  spec.bridge.forEach((b, i) => {
+    const x = PAD + i * (bw + gap);
+    const edge = i === 0 || i === n - 1;
+    ctx.fillStyle = edge ? 'rgba(242,182,50,.14)' : 'rgba(29,13,61,.92)'; rr(ctx, x, y, bw, bh, 16); ctx.fill();
+    ctx.strokeStyle = edge ? 'rgba(242,182,50,.8)' : 'rgba(196,179,230,.3)'; ctx.lineWidth = 2; rr(ctx, x, y, bw, bh, 16); ctx.stroke();
+    ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
+    ctx.fillStyle = edge ? GOLD2 : MUTED; ctx.font = font(16, 800);
+    ctx.fillText(b.label.toUpperCase(), x + bw / 2, y + 36);
+    ctx.fillStyle = b.color || TEXT; ctx.font = font(edge ? 40 : 36, 900);
+    ctx.fillText(b.text, x + bw / 2, y + 86);
+    if (b.sub) { ctx.fillStyle = FAINT; ctx.font = font(15, 600); ctx.fillText(fitText(ctx, b.sub, bw - 16), x + bw / 2, y + 114); }
+    if (i < n - 1) {
+      ctx.fillStyle = GOLD2; ctx.font = font(28, 900); ctx.textBaseline = 'middle';
+      ctx.fillText(i === n - 2 ? '=' : '›', x + bw + gap / 2, y + bh / 2);
+    }
+  });
+  y += BRIDGE;
+
+  // sections
+  for (const { s, split, per, h } of layout) {
+    ctx.fillStyle = 'rgba(29,13,61,.92)'; rr(ctx, PAD, y, W - PAD * 2, h, 18); ctx.fill();
+    ctx.strokeStyle = 'rgba(242,182,50,.45)'; ctx.lineWidth = 2; rr(ctx, PAD, y, W - PAD * 2, h, 18); ctx.stroke();
+    // title tab
+    ctx.font = font(22, 900);
+    const tw = ctx.measureText(s.title.toUpperCase()).width + 60;
+    ctx.fillStyle = goldGrad(ctx, y + 12, 40); rr(ctx, PAD + 20, y + 14, tw, 40, 10); ctx.fill();
+    ctx.fillStyle = INK; ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+    ctx.fillText(s.title.toUpperCase(), PAD + 50, y + 35);
+    if (s.sub) { ctx.fillStyle = MUTED; ctx.font = font(17, 600); ctx.fillText(s.sub, PAD + 40 + tw, y + 35); }
+    if (s.total) { ctx.fillStyle = s.total.color || TEXT; ctx.font = font(28, 900); ctx.textAlign = 'right'; ctx.fillText(s.total.text, W - PAD - 28, y + 35); }
+    const innerX = PAD + 20, innerW = W - PAD * 2 - 40, cg = 40;
+    const colW = (innerW - cg * (split - 1)) / split;
+    for (let part = 0; part < split; part++) {
+      const cx0 = innerX + part * (colW + cg);
+      const weights = s.cols.reduce((a, col) => a + (col.w || 1), 0);
+      let xx = cx0;
+      const geo = s.cols.map((col) => { const w = (colW * (col.w || 1)) / weights; const g = { x: xx, w, align: col.align || 'right' }; xx += w; return g; });
+      const ty = y + SHEAD;
+      ctx.font = font(15, 800); ctx.fillStyle = FAINT; ctx.textBaseline = 'middle';
+      s.cols.forEach((col, j) => { const g = geo[j]; ctx.textAlign = g.align; ctx.fillText(col.label.toUpperCase(), g.align === 'right' ? g.x + g.w - 8 : g.x + 8, ty + CHEAD / 2); });
+      ctx.strokeStyle = 'rgba(196,179,230,.25)'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(cx0, ty + CHEAD); ctx.lineTo(cx0 + colW, ty + CHEAD); ctx.stroke();
+      const rows = s.rows.slice(part * per, (part + 1) * per);
+      rows.forEach((r, i) => {
+        const ry = ty + CHEAD + i * ROWH;
+        if (i % 2 === 1) { ctx.fillStyle = 'rgba(255,255,255,.035)'; ctx.fillRect(cx0, ry, colW, ROWH); }
+        ctx.globalAlpha = r.faint ? 0.5 : 1;
+        r.cells.forEach((cell, j) => {
+          if (!cell) return;
+          const g = geo[j];
+          ctx.textAlign = g.align; ctx.textBaseline = 'middle';
+          ctx.fillStyle = cell.color || TEXT; ctx.font = font(17, cell.bold ? 800 : 600);
+          ctx.fillText(fitText(ctx, cell.text, g.w - 16), g.align === 'right' ? g.x + g.w - 8 : g.x + 8, ry + ROWH / 2 + 1);
+        });
+        ctx.globalAlpha = 1;
+      });
+      if (!s.rows.length && part === 0) { ctx.fillStyle = FAINT; ctx.font = font(17, 600); ctx.textAlign = 'left'; ctx.fillText(s.empty || 'Nothing in this window.', cx0 + 8, ty + CHEAD + ROWH / 2); }
+    }
+    let fy = y + SHEAD + CHEAD + per * ROWH + 8;
+    for (const f of s.foot || []) {
+      ctx.strokeStyle = 'rgba(242,182,50,.35)'; ctx.beginPath(); ctx.moveTo(innerX, fy); ctx.lineTo(innerX + innerW, fy); ctx.stroke();
+      ctx.textBaseline = 'middle'; ctx.textAlign = 'left'; ctx.fillStyle = f.bold ? GOLD2 : MUTED; ctx.font = font(17, f.bold ? 800 : 600);
+      ctx.fillText(f.label, innerX + 8, fy + FOOTH / 2);
+      ctx.textAlign = 'right'; ctx.fillStyle = f.color || TEXT; ctx.font = font(19, 800);
+      ctx.fillText(f.text, innerX + innerW - 8, fy + FOOTH / 2);
+      fy += FOOTH;
+    }
+    y += h + GAPS;
+  }
+
+  let ny = y + 10;
+  ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic'; ctx.font = font(17, 500); ctx.fillStyle = MUTED;
+  for (const t of spec.notes || []) { ctx.fillText(t, PAD + 6, ny); ny += 30; }
+  drawFooter(ctx, W, H, FOOT, spec, art);
+  return c;
+}
