@@ -1286,7 +1286,14 @@ html { scroll-behavior: smooth; }
 .votchart { width: 100%; height: auto; display: block; }
 .votchart .vg { stroke: var(--line); stroke-dasharray: 3 4; }
 .votchart .vt { fill: var(--muted); font-size: 11px; }
-.votchart .vlab { font-size: 12px; font-weight: 800; paint-order: stroke; stroke: var(--card); stroke-width: 4px; }
+.votchart .vlab { font-size: 12px; font-weight: 600; fill: var(--muted); }
+.votchart .vlab.on { fill: var(--text); font-weight: 800; }
+.votchart .vini { font-size: 11px; font-weight: 800; fill: #fff; }
+.votchart .vend { cursor: pointer; transition: opacity .15s ease; }
+.votchart .vend.dim { opacity: .25; }
+.votchart .vdraft { stroke: var(--gold); stroke-dasharray: 4 4; opacity: .6; }
+.pbar-name { display: flex; align-items: center; gap: 6px; }
+.pbar-name .av { width: 20px; height: 20px; font-size: 9px; flex: none; }
 .votchart .vline { cursor: pointer; transition: opacity .15s ease; }
 .votchart .vline.dim { opacity: .15; }
 .vlegs { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
