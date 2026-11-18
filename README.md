@@ -174,6 +174,9 @@ The sidebar on the left has every page. The top bar has search (players and mana
   - **Who drafts well in this league,** and every past rookie draft with what each pick became.
   - **Prospect board:** FantasyPros dynasty rookie rankings when they cover next year's class. Otherwise, paste any ranking list. You can star your guys.
 
+## What changed in 2.42.0
+- **Rookie draft: view any team.** A "Viewing" picker at the top of the Rookie draft page switches the page to any manager: their projected picks, draft capital, roster needs and tips, with their picks highlighted in the draft order. "Export mock draft" gives their picks the gold border. Your own team stays the default.
+
 ## What changed in 2.41.0
 - **Fixed: Value over time started too high.** The starting value counted an extra year of draft picks that today's values don't include, so every team looked like it had lost value. Team values now count picks for the next two rookie drafts at every point in time, the same as today's values. When a rookie draft finishes, the year after next starts counting; that shows as its own **New pick year** step (on screen, in the team ledger and in the exports) instead of hiding in the starting value.
 
