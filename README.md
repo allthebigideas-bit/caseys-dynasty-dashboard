@@ -58,6 +58,7 @@ The sidebar on the left has every page. The top bar has search (players and mana
   - Your roster value split by career phase (rising, at peak, declining, picks).
   - Your lineup outlook for the next three seasons.
 - **Value over time:** each team's value week by week since this season's rookie draft, then a bridge for every team: draft-day value, plus trades, plus waiver adds, minus players dropped, plus appreciation (what's left: players and picks gaining or losing value while held) equals today. Below that, value by position as a bar chart with position toggles and a draft-day/today switch, and a table with each team's league rank at each position.
+- **Team ledger** (under Value over time): one team's full accounting: the bridge from the starting value to today, its value week by week against the league average, and every trade, rookie pick, waiver move and change in value behind it. Export it as one image.
 - **Managers:** one card per manager with posture, record, value, age, needs and your note. Each manager's page shows:
   - The evidence behind his posture.
   - "How to deal with him".
@@ -90,75 +91,298 @@ The sidebar on the left has every page. The top bar has search (players and mana
   "Waiver target" buttons on the Rising players page and in player panels add straight to your list.
 - **Picks**, **Market** and **Settings** work as before.
 
-## What changed in 2.22
+## What changed
+
+Newest first. Casey's Dynasty Dashboard started at 2.23.0 as the team version of Waiver Vulture; the older entries are Waiver Vulture's history.
+
+### 2.43.0
+
+- **Change the logo.** Right-click the logo at the top of the sidebar and choose "Change logo…" to use your own image (it's resized and kept in this browser, separately for each league). It shows in the sidebar and on every exported image. "Use the league crest" puts the original back.
+
+### 2.42.0
+
+- **Rookie draft: view any team.** A "Viewing" picker at the top of the Rookie draft page switches the page to any manager: their projected picks, draft capital, roster needs and tips, with their picks highlighted in the draft order. "Export mock draft" gives their picks the gold border. Your own team stays the default.
+
+### 2.41.0
+
+- **Fixed: Value over time started too high.** The starting value counted an extra year of draft picks that today's values don't include, so every team looked like it had lost value. Team values now count picks for the next two rookie drafts at every point in time, the same as today's values. When a rookie draft finishes, the year after next starts counting; that shows as its own **New pick year** step (on screen, in the team ledger and in the exports) instead of hiding in the starting value.
+
+### 2.40.0
+
+- **Choose KTC's value source.** Trade summary, Value over time and Team ledger now have a Crowdsourced / Crowd + Trades / Tradesourced switch, matching KeepTradeCut's own setting. It changes every KTC value the dashboard uses (team values, trade grades, the scale for historical values) and is remembered. Exports note which source they used. KTC's other sources load on the next sync.
+
+### 2.39.0
+
+- **Team ledger page** (under Value over time in the sidebar). Pick a team to see everything at once:
+  - the bridge from the starting value to today;
+  - its value week by week next to the league average;
+  - Trades, Waivers, Rookie drafts and Appreciation, listed in full one after another.
+
+  Clicking a number on Value over time opens this page at that section. The window switch and "Export ledger" are here too.
+- **The ledger export includes the chart:** the team's value week by week, with the league average and the rookie draft marked.
+
+### 2.38.1
+
+- **Fixed: reversed trades counted twice.** When Sleeper shows the same trade twice (same teams, same players and picks, nothing in between moving them), the first one was reversed and made again. Only the later one now counts, in Trade summary, League trades and Value over time. The trades list on Value over time says which trade was left out.
+- The trades list on Value over time now totals "Net now" too.
+
+### 2.38.0
+
+- **Team ledger export.** In Value over time's player-by-player panel (click any team's Trades, Waivers, Value lost, Rookie drafts or Appreciation number), "Export ledger" saves one image with everything for that team:
+  - the bridge from the starting value to today, step by step;
+  - every trade, with Trade summary's Net then and Net now;
+  - every rookie pick: pick used, player taken, gain;
+  - every waiver add and drop, with value that week and today;
+  - every asset's appreciation while held, with the totals that add up to the Appreciation number.
+
+  Long lists are split into two columns so the whole ledger stays in one image.
+
+### 2.37.1
+
+- The Value over time export now has the League totals row (or the total for the teams you picked) and sorts teams the same way as the table on screen.
+
+### 2.37.0
+
+- **Value over time exports a PNG.** It has the league art and crest, award cards (biggest climb, best trader, waiver hawk, biggest slide), the week-by-week chart with team logos, and the full bridge table.
+- **Pick teams to compare.** Click teams on the chart or the coloured dot in the table to pick them out; the chart dims the rest and the export shows just those teams. "Show the whole league" clears the selection.
+
+### 2.36.0
+
+- **Trades audit.** Click a team's Trades number on Value over time to list every trade it made: date, season, partner, what it got and gave, and Trade summary's "Net then" and "Net now" for each, with subtotals that match Trade summary's "This season" and "Earlier seasons" columns. Trades before the chosen window are listed in grey.
+- **Trade summary** gets all-seasons **Trades** and **Net then** columns next to all-seasons Net now. "Net then", all seasons, is the number in Value over time's Trades column.
+
+### 2.35.0
+
+- **Value over time goes back to the startup draft.** A new "Since the startup draft" view, now the default, starts from the rosters right after the league's first draft and replays every trade, waiver move and rookie draft since, across seasons. "This season" and "Since this year's rookie draft" are still there.
+- **Trades match Trade summary.** The Trades column now uses Trade summary's own "Net then" figures, KTC package adjustment included. The count covers the same trades: this season, plus earlier seasons in the startup view. Click a team's Trades number to open Trade summary with that manager's row picked out.
+- **Every number is traceable.** Click a team's Waivers added, Value lost, Rookie drafts or Appreciation for a player-by-player report:
+  - **Waivers:** every add and drop, with its value that week and today.
+  - **Rookie drafts:** each pick used, the player taken, and the gain.
+  - **Appreciation:** every player and pick the team has held, what it was worth when it arrived and when it left (or today), with the trade-pricing and pick-slot differences listed separately so the lines add up to the Appreciation number exactly.
+
+### 2.34.0
+
+- **Fixed: historical values were inflated.** "Values at the time" (Value over time and Trade summary's "at trade") put DynastyProcess values on the dashboard's scale by percentile. DynastyProcess's weekly file ranges from under 400 to nearly 700 rows, so the same player's converted value jumped up or down by a third from week to week with the file's length. It now converts by rank: the Nth most valuable asset that week gets the value of today's Nth most valuable asset. Trade summary's "at trade" numbers will shift a little too.
+- **Value over time:**
+  - A switch between "Since the rookie draft" and "Since the season started". The season view includes every trade this season (matching Trade summary's count) and adds a **Rookie draft** column: players drafted minus the picks used.
+  - Team logos and names at the end of each line, kept apart so they don't overlap; the y-axis fits the data.
+  - The Trades column shows "3 of 8" when some of the season's trades fall before the window, and notes explain why it differs from Trade summary (window, and valued at the time vs today).
+  - A warning if the latest weekly values and today's dashboard values disagree by more than 4%.
+  - Fixed: picks used in this season's draft were matched to the wrong original owner when Sleeper doesn't send the slot map.
+- **Mock draft by need.** The mock pick on the Rookie draft page and the poster now does more than read the board in order: picks 1-3 take the best available, then each team weighs the next seven prospects against its weakest positions (league rank by dynasty value). A team that just traded for a starting QB lets a QB slide. Picks made for need are tagged, e.g. "Need RB · 11th".
+
+### 2.33.0
+
+- **New league art.** Five new banners across the page headers (Trades, Managers, Value over time, Start/Sit, Rising players, Demand, Market) and in the poster headers: Trade summary and the mock draft each get their own. The phone background is the corrected version.
+
+### 2.32.0
+
+- **Mock draft export.** On the Rookie draft page, "Export mock draft" saves a PNG of next year's draft: the league crest and art, a gold title, every round side by side, and for each pick the slot, the prospect at that spot on your board (with position colour and school) and the team that owns it ("via" for traded picks). Your picks have a gold border.
+- **Clearer position hit rates.** The "QB/RB/WR/TE in rounds 1-2" tiles now say "5 of 9 hit" instead of "9 players", with a note underneath explaining what the numbers count.
+
+### 2.31.0
+
+- **New page: Value over time.** A line chart of every team's value each week since the rookie draft (click a team to pick it out), a table showing where each team's value came from (draft day, trades, waivers added, value lost, appreciation, today), and value by position with toggles.
+- Weekly values come from DynastyProcess's weekly history converted to the KTC scale, the same as Trade summary's "at trade" figures. They load during a sync and show under Settings → Data sources.
+
+### 2.30.0
+
+Player cards get two new sections:
+
+- **Season stats:** games, points and points per game in this league's scoring; a position-aware stat line (QB: completions, passing yards, TD, INT, rushing yards; RB/WR/TE: targets, catches, receiving yards, carries, rushing yards, TD); snap share; and a week-by-week points chart.
+- **Market:**
+  - % rostered across the Sleeper leagues your league-mates play in, for dynasty leagues and for all leagues. This fills in after the next daily scan, or straight away with Settings → Rescan other leagues.
+  - Sleeper-wide adds, drops and net for the last 24 hours and 7 days.
+  - Every add, drop and waiver claim (with FAAB bid) for him in this league.
+
+### 2.29.2
+
+- **Rookie draft hit rates were missing whole classes.** DynastyProcess left `draft_year` as "NA" for that year's rookies in its summer 2023 snapshots (and the 2025 and 2026 ones), so the 2023 class (Bijan Robinson, Jahmyr Gibbs, Jaxon Smith-Njigba, Sam LaPorta, Dalton Kincaid) silently dropped out of "What each slot has produced" and the rounds 1-2 tiles, and the 2025-26 classes out of the position-mix chart. Missing draft years now come from today's file. With 1QB values: TE 56% of 9 (was 60% of 5), QB 43% of 14, RB 29% of 38, WR 32% of 59; 1.01-1.03 80% of 15 (was 75% of 12).
+
+### 2.29.1
+
+- Fixed: on manager pages, the value-weighted age in "Roster value by career phase" sat below the ring, on top of "Rising". The small split donuts added for Most lopsided in 2.24 reused the ring's `donut` class and overrode its layout; they're now `sdonut`.
+
+### 2.29.0
+
+- **Waiver runs start on the right night.** The start time only looked at the clock, never the day, so a weekly-waiver league armed on any day but Tuesday ran a day or more early, found nothing processed, fell back to adding players still on waivers, and gave up. Runs now start on the league's waiver morning (Sleeper's `waiver_day_of_week`, counted from Monday: the default 2 is early Wednesday). Daily-waiver leagues still run the next night. The Waivers page shows the day and when the next run would start; the button reads "Arm for next waivers" and the sidebar shows when an armed run starts.
+- **Bigger league crest** at the top of the sidebar.
+- **League switcher** under the crest: every league the login is in this season. Picking one loads your team there; "Another league or team…" opens the team picker.
+- **League compare: add any league by ID** (or paste its address). Added leagues are kept under "Leagues you added" and can be removed.
+
+### 2.28.2
+
+- **Sleeper requests that hang give up after 25 seconds,** so a sync or Refresh can't sit stuck forever.
+- Sync now runs under `npm test` on responses recorded from the test league. `node scripts/record-fixtures.js` re-records them, with no login.
+
+### 2.28.1
+
+- **Refresh no longer mixes your offers into someone else's team.** While viewing another team, Refresh updates rosters, picks and the trade block, and leaves offers alone.
+- **Co-owners get offers, alerts and waiver claims** for the team they co-own, however the team was picked.
+- **Logged out:** the offers, alerts and waiver screens say to log in to sleeper.com in this Chrome, and arming, claiming and dry runs do nothing.
+- One own-team check (`lib/ownteam.js`) decides all of this, with tests.
+
+### 2.28.0
+
+Brings over the trade tree work from Waiver Vulture 2.23–2.27:
+
+- **Trade tree value math fixed.** "At the trade" used KTC's calculator total (with its package adjustment) but "today" was a raw sum, so gaps, swings and "flipped in hindsight" were off by the adjustment. Today's trees now go through the same calculator. "At the trade" only shows when there are real values from that time.
+- **Starter points in the trade trees.** Every player carries the starting-lineup points he scored for that team while on the roster, credited down the tree by share, like value.
+- **Attribution math per trade:** a summary card per side, the steps in plain English, a worked example, and one row per asset with the share chain written out.
+- **Most lopsided and Most branches tables expanded:** each side's value at the trade, today and starter points, plus value gap, swing and points gap (or totals and growth). Click any column to re-rank; the top 10 is re-picked by that column. (This replaces 2.27.0's simple By value / By points switch.)
+- **JPG report:** next to *Download PDF report*, *JPGs (.zip)* saves a cover image plus one tall image per trade (the tree and its full accounting). The images are always dark, whatever theme the dashboard is in.
+- PDF report updated to match.
+
+### 2.27.0
+
+- **Most lopsided trades: By value / By points.** By points ranks trades by how many more starter points one side's new players have scored than the other's since the deal. The PDF report follows whichever you pick. (2.28.0 replaced this switch with click-to-sort columns.)
+
+### 2.26.3
+
+- Phones: Settings and League trades no longer spill sideways at narrow widths, and items you tab or jump to no longer hide under the sticky top bar.
+- The account swap (two members on one computer) moved to `lib/accounts.js`, with a test that logs in as A, then B, then A again.
+
+### 2.26.2
+
+- **Waivers stay off for someone else's team.** While you're viewing another team, the Waivers page explains why claims are off instead of listing that team's players as drop spots, and the **Waivers armed** switch takes you there.
+- **Each Sleeper account keeps its own notes, alerts and waiver plans.** When someone else logs in to Sleeper in the same Chrome, your notes, tags, alert history and waiver lists are put away, and theirs (or a blank set) come out. Logging back in brings yours back.
+- **No more repeated full syncs when offers fail.** If Sleeper's offers lookup errors, the dashboard no longer starts a full sync every time it opens. It tries again on the usual 30-minute refresh, or straight away when you log in to sleeper.com again.
+- Waiver notifications now say "Casey's Dynasty Dashboard" instead of "Waiver Vulture", so they can't be mixed up with a personal Waiver Vulture install.
+- First automated tests (trade grades, aging curves, the "is this my team" check). Run them with `npm test`. They also run on GitHub for every push.
+
+### 2.26.1
+
+- **Season table poster** now has everything in the on-screen table: the week-by-week W/L grid (faded squares are projected weeks, with the chance to win), scoring, efficiency, all-play, strength and schedule, projected record, average seed and playoff, bye and #1 seed chances, and the playoff line.
+
+### 2.26.0
+
+- **Export PNG** on Trade summary and Season table: a shareable poster with the league art, crest, a gold title ribbon, award ribbons and a clear table.
+  - Trade summary poster: ranked by net value now (all time), with **Net value now** and **Points gained** called out in gold. Leaves out the "Offers with you" columns. Awards: Best trader, Most points from trades, Busiest dealer and Fleeced.
+  - Season table poster: everything in the on-screen table, including the week-by-week W/L grid (faded squares are projected weeks, with the % chance to win), scoring, efficiency, all-play, strength and schedule, projected record, average seed and playoff/bye/#1 seed chances with bars, plus a dashed playoff line. It follows the table's order when sorted by playoff chances or projected record. Awards: Top seed favourite, Points leader, Toughest luck and Lottery watch.
+- **My offers** now opens with summary tiles, a by-manager table (sent and received, with outcomes and his average ask) and a weekly chart of offers sent versus received, coloured by outcome.
+- Fixed: the sidebar scrolled away with the page and got cut off.
+- Fixed: offers didn't load until sleeper.com was reloaded after installing.
+
+### 2.25.1
+
+- **Fixed: offers didn't load after installing** until sleeper.com was reloaded. The extension now picks up the Sleeper login from tabs that are already open, syncs again as soon as the login arrives, and the offer pages explain what's missing instead of showing zeros.
+
+### 2.25.0
+
+- **Menu:** Season table is now at the top, above Overview. Trade summary moved from Managers to the top of the Trades section, and clicking Trades opens it.
+- **Ribbons:** gold banner ribbons on section titles, tab ribbons on card titles, a corner "YOU" ribbon on your manager card, and a gold marker on your row in tables and on the active menu item.
+- **League art throughout:** the wide artwork frames each page at the edges on big screens, the portrait art rises from the bottom of the sidebar, and each main page gets its own art header (the trophy for Season table, the draft board for Rookie draft and Picks, the slumped trio for Waivers, and so on).
+- **Scroll bars:** slim gold-to-purple scroll bars in both themes.
+- **Motion:** pages ease in and cards lift slightly on hover. Both are switched off if your computer is set to reduce motion.
+
+### 2.24.0
+
+- New look to match the league crest: royal purple and trophy gold, with the crest in the sidebar and gold buttons.
+- **Dark and light modes.** The half-moon button in the top bar switches between Auto (follows your computer), Dark and Light.
+- League art on the welcome screen, the Overview banner and each manager's page. Teams on the way up get the celebrating players; teams on the way down get the slumped ones.
+- Phones and other tall screens get their own portrait background on the login screen.
+- **Trade finder leans young.** Players past their position's peak (RB 24, WR 25, TE 26, QB 27) count for less and drop off fast after RB 28, WR/TE 30, QB 33. Players younger than their peak get a small boost, and selling your own older players costs you less. Choose **Ignore age**, **Favour youth** (the default) or **Strongly favour youth** in the finder. Contenders get a softer version so they can still buy proven starters.
+
+### 2.23.0 (team version)
+
+- Each league member sees their own team: the dashboard follows whoever is logged in to Sleeper in that Chrome.
+- New **Your team** picker (Settings, and the welcome screen) to choose a league and team by username or league ID, with or without a login.
+- Viewing a team that isn't your login turns off offers, alerts and waiver claims, and shows a "Viewing as" tag.
+- A new Sleeper login in the same Chrome switches the dashboard over and stops waiver runs armed for the previous account.
+- Password splash screen, remembered for 30 days per browser.
+- Renamed to Casey's Dynasty Dashboard. It has its own extension ID, so it can sit beside a personal Waiver Vulture install.
+
+### Waiver Vulture history (before the team version)
+
+Versions 2.3 to 2.9 have no notes.
+
+#### 2.22
+
 - **Attribution math under every trade tree.** Two tables show exactly how the tree's values are worked out. *Later deals*: each deal (D1, D2, …) with the tree's players and picks and their value on that day, anything added from outside and its value, the tree's share (tree ÷ total sent), what came back at today's values, and how much is credited to the tree. *Residual value by asset*: every player or pick the tree ends in, the path of deals that led to it (with each deal's share), its value today × the combined share = the value attributable to the original trade, with a subtotal per side compared to the value at the trade (net gain or loss). The subtotals match the tree's totals.
 
-## What changed in 2.21
+#### 2.21
+
 - **The whole trade tree on one screen.** Both teams' sides are always drawn in one diagram; the canvas fills the screen height and Fit scales the entire tree to fit it (width and height). Layout Auto tries top-down and left-to-right and keeps whichever shows the whole tree largest. Full screen re-fits to the whole monitor.
 - **Every player in every deal is drawn.** Players and picks a team added to a later deal from outside the tree now appear as faded "+ Added in this deal" boxes next to the tree's own, instead of only as text. (The PDF keeps the compact "with …" text.)
 
-## What changed in 2.20
+#### 2.20
+
 - **Team logos throughout the trade trees and reports.** Uses each manager's custom team logo for this league when they've uploaded one (otherwise their Sleeper avatar): in the tree's header, on every team node, in each later-deal bubble, the original-trade summary, the trade strip, the lists, and in the PDF reports (player headshots stay off in the PDF to keep it light).
 - **New Most branching trades report:** the league's top 10 trade trees by number of branches (times an asset from the deal was flipped: traded on, or a pick spent, both sides counted), with generations, later deals, assets in the tree and what it's all worth today. It has its own PDF report in the same style.
 
-## What changed in 2.19
+#### 2.19
+
 - **Trade trees credit each branch with its fair share.** When a player from a tree was later traded together with other assets, the tree used to be credited with everything that came back. Now each later deal is split by value on the day of that deal (KTC for recent trades, DynastyProcess rankings from that week for older ones, converted to the KTC scale), and the branch is credited only with its share. Shares compound down the generations. The bubble shows "tree's share 62% → credited 4.8k" (hover for the values used). Tree totals, value gains and the lopsided ranking all use the credited values.
 
-## What changed in 2.18.1
+#### 2.18.1
+
 - **PDF report fixed for real leagues:** every page is a full landscape page with its own dark background (no white band at the bottom); the cover's top-10 table is one line per trade and always fits, with the page number of each trade's tree; trees too big for one page no longer shrink to unreadable — they continue on following pages ("continued", labelled part 1 of 2 and so on), split at branch boundaries so nothing is cut off.
 - Fixed: the Most lopsided trades table (and the trade tree list) was squeezed into a small scroll box.
 
-## What changed in 2.18
+#### 2.18
+
 - **Better layouts for big trade trees.** New left-to-right layout: each generation is a column and flips stack down the page, so deep, branchy trees stay readable instead of sprawling sideways. Layout **Auto** (the default) draws top-down when the tree fits and switches to left-to-right when it doesn't; **Vertical** and **Horizontal** force one or the other.
 - **Collapse branches and limit generations.** Every flip has a − button to collapse its branch (it shows +N when hidden), and the Generations menu shows 1, 2, 3, 4 or all generations so huge trees can be read a level at a time.
 - The PDF report now picks, per trade, whichever of three layouts (side by side, stacked, left-to-right) fits its page largest.
 
-## What changed in 2.17
+#### 2.17
+
 - **Trade Tree redesigned** in a neon dashboard style: hero header, summary tiles (trades, managers, assets moved, net value change, most active manager; or, on a tree, generations, later deals, net change and who's winning it), a node legend, and a toolbar with filters (all/my trades, deep trees, involving picks; by manager; by asset type), a Tree/List view switch, Horizontal/Vertical layout, zoom and full screen. A strip of trade cards switches trees in one click; the tree sits on a glowing grid canvas.
 - **Most lopsided trades** uses the same look, and the **PDF report** matches it: a dark neon cover page with the summary and top-10 table, then one page per trade with its stats, original deal and tree, each tree sized to fit its page (side by side or stacked, whichever fits larger).
 
-## What changed in 2.16
+#### 2.16
+
 - **Trade trees show the full deals.** The top of each tree lists the original trade in full (everything each side received, valued then and now), and every later-deal bubble lists anything else that went into that deal ("with Player X, 2028 3rd"), so you can see whether a flip was straight up.
 - **Sort trade trees** by generations, later deals, biggest value gain (what the better side's haul is worth today minus at the trade), most lopsided, or newest.
 - **New Most lopsided trades page:** the league's top 10 trades by how far apart the two sides' trees are today, with the value split at the trade vs today. **Download PDF report** builds a printable report (the top-10 table, then each trade's full deal and tree on its own landscape page); choose "Save as PDF" in the print window.
 
-## What changed in 2.15.2
+#### 2.15.2
+
 - Fixed: wide trade trees running off the left of the page. Trees now open zoomed to fit the screen; when a trade is too wide for that (big multi-player deals), the two sides are stacked one above the other instead of shrinking past readable. "Side by side" and "Stacked" buttons switch layout, and +/− zoom from there (the tree scrolls when zoomed in).
 
-## What changed in 2.15.1
+#### 2.15.1
+
 - Fixed: long player and team names showing as "…" in trade trees. Names now wrap.
 
-## What changed in 2.15
+#### 2.15
+
 - **Trade trees get their own page.** "See trade tree" on any completed trade opens a family-tree diagram: the deal at the top, each side's haul branching down, and every later flip dropping a generation into the deal it went into and what came back (a pick branches into the player drafted with it). Each node shows what it's worth today or what it became; each side shows value at the trade vs today, generations, later deals and players still rostered. Zoom in and out, or show one side. Each later deal links to its own tree.
 - **New Trade trees page** (under Others): every completed trade ranked by how many generations its tree has grown, with each side's haul value today. Filter to your own trades.
 
-## What changed in 2.14
+#### 2.14
+
 - **Rookie draft page: Out with the old.** How many players won't be back next year, how many roster spots that opens against your limit (25 here), how many picks you have, and how many cuts you'll need in the week after the draft if you make every pick. Suggests who's likely gone (NFL free agents, older players whose value has faded, players worth less than your last pick, a second defense); mark anyone Gone or Back and your choices are saved.
 
-## What changed in 2.13
+#### 2.13
+
 - **Lock pick seasons Sleeper won't let you trade yet** (for example, 2028 picks until next year's dues are paid). Each season on the Picks page has a Tradeable/Locked switch. Locked picks stay out of the trade finder, trade lab, this-week finder and pick equivalents, and show as "locked" in your draft capital, where they still count. By default next year's picks are tradeable, and later seasons start locked unless Sleeper already shows a trade involving them.
 
-## What changed in 2.12.1
+#### 2.12.1
+
 - The sidebar shows when rosters and pick ownership were last refreshed (they refresh every few minutes, on the refresh button, and after any trade), separately from the last full sync.
 
-## What changed in 2.12
+#### 2.12
+
 - **Every deal with a manager, tabbed.** Each manager page now lists every deal between you and him under All, Completed, Waiting, Rejected, Withdrawn by him and Withdrawn by you. Each tab shows: how many deals and who started them, who rejected, your average value balance at the time and today, net value gained (completed tab), typical time open, and the players he keeps asking for.
 - **Refresh button** in the top bar: reloads rosters, picks, offers and trade blocks from Sleeper in a few seconds. "Sync now" in the sidebar still reloads everything.
 - The "Share view on" button is gone from the top bar. Share view is still switched on and off on the Trade summary page.
 
-## What changed in 2.11.1
+#### 2.11.1
+
 - **Fixed: traded players stuck on trade blocks.** Sleeper can leave the trade-block flag on a player or pick after it's traded. Blocks now only list what the team still owns, and the trade block refreshes every few minutes with rosters and picks.
 
-## What changed in 2.11
+#### 2.11
+
 - **New League compare page** (under Others). Pick any league-mate, then any of their other leagues (or one of yours), and compare it with this one: settings and scoring side by side, players rostered by position, QB depth (including how many NFL starters and backups are held), and the full list of players held in one league but not the other, filterable by position.
 - **Fixed: picks on the wrong side of offers.** Old offers could show picks going the wrong way once those picks changed hands in a later trade. Pick direction now comes straight from Sleeper's offer data.
 
-## What changed in 2.10
+#### 2.10
+
 - **Trades show up within minutes.** The 5-minute background check now refreshes rosters, pick ownership, this week's transactions and offers whenever a trade or offer changes. An open dossier updates itself, and coming back to the tab pulls current rosters and picks. A full sync is no longer needed after a trade.
 - **Rookie draft page: Your draft capital.** Every pick you own in every season, its projected slot and value, where it came from, your league rank in pick value, and the picks you've traded away.
 - **New Positional ranks page** (see Pages).
 
-## What changed in 2.2
+#### 2.2
 
 - **Your offers** (top of the Manager summary page):
   - How many offers you've sent, and how many were accepted, rejected, withdrawn or still waiting.
@@ -174,177 +398,7 @@ The sidebar on the left has every page. The top bar has search (players and mana
   - **Who drafts well in this league,** and every past rookie draft with what each pick became.
   - **Prospect board:** FantasyPros dynasty rookie rankings when they cover next year's class. Otherwise, paste any ranking list. You can star your guys.
 
-## What changed in 2.43.0
-- **Change the logo.** Right-click the logo at the top of the sidebar and choose "Change logo…" to use your own image (it's resized and kept in this browser, separately for each league). It shows in the sidebar and on every exported image. "Use the league crest" puts the original back.
-
-## What changed in 2.42.0
-- **Rookie draft: view any team.** A "Viewing" picker at the top of the Rookie draft page switches the page to any manager: their projected picks, draft capital, roster needs and tips, with their picks highlighted in the draft order. "Export mock draft" gives their picks the gold border. Your own team stays the default.
-
-## What changed in 2.41.0
-- **Fixed: Value over time started too high.** The starting value counted an extra year of draft picks that today's values don't include, so every team looked like it had lost value. Team values now count picks for the next two rookie drafts at every point in time, the same as today's values. When a rookie draft finishes, the year after next starts counting; that shows as its own **New pick year** step (on screen, in the team ledger and in the exports) instead of hiding in the starting value.
-
-## What changed in 2.40.0
-- **Choose KTC's value source.** Trade summary, Value over time and Team ledger now have a Crowdsourced / Crowd + Trades / Tradesourced switch, matching KeepTradeCut's own setting. It changes every KTC value the dashboard uses (team values, trade grades, the scale for historical values) and is remembered. Exports note which source they used. KTC's other sources load on the next sync.
-
-## What changed in 2.39.0
-- **Team ledger page** (under Value over time in the sidebar). Pick a team to see everything at once:
-  - the bridge from the starting value to today;
-  - its value week by week next to the league average;
-  - Trades, Waivers, Rookie drafts and Appreciation, listed in full one after another.
-
-  Clicking a number on Value over time opens this page at that section. The window switch and "Export ledger" are here too.
-- **The ledger export includes the chart:** the team's value week by week, with the league average and the rookie draft marked.
-
-## What changed in 2.38.1
-- **Fixed: reversed trades counted twice.** When Sleeper shows the same trade twice (same teams, same players and picks, nothing in between moving them), the first one was reversed and made again. Only the later one now counts, in Trade summary, League trades and Value over time. The trades list on Value over time says which trade was left out.
-- The trades list on Value over time now totals "Net now" too.
-
-## What changed in 2.38.0
-- **Team ledger export.** In Value over time's player-by-player panel (click any team's Trades, Waivers, Value lost, Rookie drafts or Appreciation number), "Export ledger" saves one image with everything for that team:
-  - the bridge from the starting value to today, step by step;
-  - every trade, with Trade summary's Net then and Net now;
-  - every rookie pick: pick used, player taken, gain;
-  - every waiver add and drop, with value that week and today;
-  - every asset's appreciation while held, with the totals that add up to the Appreciation number.
-
-  Long lists are split into two columns so the whole ledger stays in one image.
-
-## What changed in 2.37.1
-- The Value over time export now has the League totals row (or the total for the teams you picked) and sorts teams the same way as the table on screen.
-
-## What changed in 2.37.0
-- **Value over time exports a PNG.** It has the league art and crest, award cards (biggest climb, best trader, waiver hawk, biggest slide), the week-by-week chart with team logos, and the full bridge table.
-- **Pick teams to compare.** Click teams on the chart or the coloured dot in the table to pick them out; the chart dims the rest and the export shows just those teams. "Show the whole league" clears the selection.
-
-## What changed in 2.36.0
-- **Trades audit.** Click a team's Trades number on Value over time to list every trade it made: date, season, partner, what it got and gave, and Trade summary's "Net then" and "Net now" for each, with subtotals that match Trade summary's "This season" and "Earlier seasons" columns. Trades before the chosen window are listed in grey.
-- **Trade summary** gets all-seasons **Trades** and **Net then** columns next to all-seasons Net now. "Net then", all seasons, is the number in Value over time's Trades column.
-
-## What changed in 2.35.0
-- **Value over time goes back to the startup draft.** A new "Since the startup draft" view, now the default, starts from the rosters right after the league's first draft and replays every trade, waiver move and rookie draft since, across seasons. "This season" and "Since this year's rookie draft" are still there.
-- **Trades match Trade summary.** The Trades column now uses Trade summary's own "Net then" figures, KTC package adjustment included. The count covers the same trades: this season, plus earlier seasons in the startup view. Click a team's Trades number to open Trade summary with that manager's row picked out.
-- **Every number is traceable.** Click a team's Waivers added, Value lost, Rookie drafts or Appreciation for a player-by-player report:
-  - **Waivers:** every add and drop, with its value that week and today.
-  - **Rookie drafts:** each pick used, the player taken, and the gain.
-  - **Appreciation:** every player and pick the team has held, what it was worth when it arrived and when it left (or today), with the trade-pricing and pick-slot differences listed separately so the lines add up to the Appreciation number exactly.
-
-## What changed in 2.34.0
-- **Fixed: historical values were inflated.** "Values at the time" (Value over time and Trade summary's "at trade") put DynastyProcess values on the dashboard's scale by percentile. DynastyProcess's weekly file ranges from under 400 to nearly 700 rows, so the same player's converted value jumped up or down by a third from week to week with the file's length. It now converts by rank: the Nth most valuable asset that week gets the value of today's Nth most valuable asset. Trade summary's "at trade" numbers will shift a little too.
-- **Value over time:**
-  - A switch between "Since the rookie draft" and "Since the season started". The season view includes every trade this season (matching Trade summary's count) and adds a **Rookie draft** column: players drafted minus the picks used.
-  - Team logos and names at the end of each line, kept apart so they don't overlap; the y-axis fits the data.
-  - The Trades column shows "3 of 8" when some of the season's trades fall before the window, and notes explain why it differs from Trade summary (window, and valued at the time vs today).
-  - A warning if the latest weekly values and today's dashboard values disagree by more than 4%.
-  - Fixed: picks used in this season's draft were matched to the wrong original owner when Sleeper doesn't send the slot map.
-- **Mock draft by need.** The mock pick on the Rookie draft page and the poster now does more than read the board in order: picks 1-3 take the best available, then each team weighs the next seven prospects against its weakest positions (league rank by dynasty value). A team that just traded for a starting QB lets a QB slide. Picks made for need are tagged, e.g. "Need RB · 11th".
-
-## What changed in 2.33.0
-- **New league art.** Five new banners across the page headers (Trades, Managers, Value over time, Start/Sit, Rising players, Demand, Market) and in the poster headers: Trade summary and the mock draft each get their own. The phone background is the corrected version.
-
-## What changed in 2.32.0
-- **Mock draft export.** On the Rookie draft page, "Export mock draft" saves a PNG of next year's draft: the league crest and art, a gold title, every round side by side, and for each pick the slot, the prospect at that spot on your board (with position colour and school) and the team that owns it ("via" for traded picks). Your picks have a gold border.
-- **Clearer position hit rates.** The "QB/RB/WR/TE in rounds 1-2" tiles now say "5 of 9 hit" instead of "9 players", with a note underneath explaining what the numbers count.
-
-## What changed in 2.31.0
-- **New page: Value over time.** A line chart of every team's value each week since the rookie draft (click a team to pick it out), a table showing where each team's value came from (draft day, trades, waivers added, value lost, appreciation, today), and value by position with toggles.
-- Weekly values come from DynastyProcess's weekly history converted to the KTC scale, the same as Trade summary's "at trade" figures. They load during a sync and show under Settings → Data sources.
-
-## What changed in 2.30.0
-
-Player cards get two new sections:
-
-- **Season stats:** games, points and points per game in this league's scoring; a position-aware stat line (QB: completions, passing yards, TD, INT, rushing yards; RB/WR/TE: targets, catches, receiving yards, carries, rushing yards, TD); snap share; and a week-by-week points chart.
-- **Market:**
-  - % rostered across the Sleeper leagues your league-mates play in, for dynasty leagues and for all leagues. This fills in after the next daily scan, or straight away with Settings → Rescan other leagues.
-  - Sleeper-wide adds, drops and net for the last 24 hours and 7 days.
-  - Every add, drop and waiver claim (with FAAB bid) for him in this league.
-
-## What changed in 2.29.2
-
-- **Rookie draft hit rates were missing whole classes.** DynastyProcess left `draft_year` as "NA" for that year's rookies in its summer 2023 snapshots (and the 2025 and 2026 ones), so the 2023 class (Bijan Robinson, Jahmyr Gibbs, Jaxon Smith-Njigba, Sam LaPorta, Dalton Kincaid) silently dropped out of "What each slot has produced" and the rounds 1-2 tiles, and the 2025-26 classes out of the position-mix chart. Missing draft years now come from today's file. With 1QB values: TE 56% of 9 (was 60% of 5), QB 43% of 14, RB 29% of 38, WR 32% of 59; 1.01-1.03 80% of 15 (was 75% of 12).
-
-## What changed in 2.29.1
-
-- Fixed: on manager pages, the value-weighted age in "Roster value by career phase" sat below the ring, on top of "Rising". The small split donuts added for Most lopsided in 2.24 reused the ring's `donut` class and overrode its layout; they're now `sdonut`.
-
-## What changed in 2.29.0
-
-- **Waiver runs start on the right night.** The start time only looked at the clock, never the day, so a weekly-waiver league armed on any day but Tuesday ran a day or more early, found nothing processed, fell back to adding players still on waivers, and gave up. Runs now start on the league's waiver morning (Sleeper's `waiver_day_of_week`, counted from Monday: the default 2 is early Wednesday). Daily-waiver leagues still run the next night. The Waivers page shows the day and when the next run would start; the button reads "Arm for next waivers" and the sidebar shows when an armed run starts.
-- **Bigger league crest** at the top of the sidebar.
-- **League switcher** under the crest: every league the login is in this season. Picking one loads your team there; "Another league or team…" opens the team picker.
-- **League compare: add any league by ID** (or paste its address). Added leagues are kept under "Leagues you added" and can be removed.
-
-## What changed in 2.28.2
-
-- **Sleeper requests that hang give up after 25 seconds,** so a sync or Refresh can't sit stuck forever.
-- Sync now runs under `npm test` on responses recorded from the test league. `node scripts/record-fixtures.js` re-records them, with no login.
-
-## What changed in 2.28.1
-
-- **Refresh no longer mixes your offers into someone else's team.** While viewing another team, Refresh updates rosters, picks and the trade block, and leaves offers alone.
-- **Co-owners get offers, alerts and waiver claims** for the team they co-own, however the team was picked.
-- **Logged out:** the offers, alerts and waiver screens say to log in to sleeper.com in this Chrome, and arming, claiming and dry runs do nothing.
-- One own-team check (`lib/ownteam.js`) decides all of this, with tests.
-
-## What changed in 2.26.2
-
-- **Waivers stay off for someone else's team.** While you're viewing another team, the Waivers page explains why claims are off instead of listing that team's players as drop spots, and the **Waivers armed** switch takes you there.
-- **Each Sleeper account keeps its own notes, alerts and waiver plans.** When someone else logs in to Sleeper in the same Chrome, your notes, tags, alert history and waiver lists are put away, and theirs (or a blank set) come out. Logging back in brings yours back.
-- **No more repeated full syncs when offers fail.** If Sleeper's offers lookup errors, the dashboard no longer starts a full sync every time it opens. It tries again on the usual 30-minute refresh, or straight away when you log in to sleeper.com again.
-- Waiver notifications now say "Casey's Dynasty Dashboard" instead of "Waiver Vulture", so they can't be mixed up with a personal Waiver Vulture install.
-- First automated tests (trade grades, aging curves, the "is this my team" check). Run them with `npm test`. They also run on GitHub for every push.
-
-## What changed in 2.28.0
-
-Brings over the trade tree work from Waiver Vulture 2.23–2.27:
-
-- **Trade tree value math fixed.** "At the trade" used KTC's calculator total (with its package adjustment) but "today" was a raw sum, so gaps, swings and "flipped in hindsight" were off by the adjustment. Today's trees now go through the same calculator. "At the trade" only shows when there are real values from that time.
-- **Starter points in the trade trees.** Every player carries the starting-lineup points he scored for that team while on the roster, credited down the tree by share, like value.
-- **Attribution math per trade:** a summary card per side, the steps in plain English, a worked example, and one row per asset with the share chain written out.
-- **Most lopsided and Most branches tables expanded:** each side's value at the trade, today and starter points, plus value gap, swing and points gap (or totals and growth). Click any column to re-rank; the top 10 is re-picked by that column. (This replaces 2.27.0's simple By value / By points switch.)
-- **JPG report:** next to *Download PDF report*, *JPGs (.zip)* saves a cover image plus one tall image per trade (the tree and its full accounting). The images are always dark, whatever theme the dashboard is in.
-- PDF report updated to match.
-
-## What changed in 2.26.3
-
-- Phones: Settings and League trades no longer spill sideways at narrow widths, and items you tab or jump to no longer hide under the sticky top bar.
-- The account swap (two members on one computer) moved to `lib/accounts.js`, with a test that logs in as A, then B, then A again.
-
-## What changed in 2.26.0
-
-- **Export PNG** on Trade summary and Season table: a shareable poster with the league art, crest, a gold title ribbon, award ribbons and a clear table.
-  - Trade summary poster: ranked by net value now (all time), with **Net value now** and **Points gained** called out in gold. Leaves out the "Offers with you" columns. Awards: Best trader, Most points from trades, Busiest dealer and Fleeced.
-  - Season table poster: everything in the on-screen table, including the week-by-week W/L grid (faded squares are projected weeks, with the % chance to win), scoring, efficiency, all-play, strength and schedule, projected record, average seed and playoff/bye/#1 seed chances with bars, plus a dashed playoff line. It follows the table's order when sorted by playoff chances or projected record. Awards: Top seed favourite, Points leader, Toughest luck and Lottery watch.
-- **My offers** now opens with summary tiles, a by-manager table (sent and received, with outcomes and his average ask) and a weekly chart of offers sent versus received, coloured by outcome.
-- Fixed: the sidebar scrolled away with the page and got cut off.
-- Fixed: offers didn't load until sleeper.com was reloaded after installing.
-
-## What changed in 2.25.0
-
-- **Menu:** Season table is now at the top, above Overview. Trade summary moved from Managers to the top of the Trades section, and clicking Trades opens it.
-- **Ribbons:** gold banner ribbons on section titles, tab ribbons on card titles, a corner "YOU" ribbon on your manager card, and a gold marker on your row in tables and on the active menu item.
-- **League art throughout:** the wide artwork frames each page at the edges on big screens, the portrait art rises from the bottom of the sidebar, and each main page gets its own art header (the trophy for Season table, the draft board for Rookie draft and Picks, the slumped trio for Waivers, and so on).
-- **Scroll bars:** slim gold-to-purple scroll bars in both themes.
-- **Motion:** pages ease in and cards lift slightly on hover. Both are switched off if your computer is set to reduce motion.
-
-## What changed in 2.24.0
-
-- New look to match the league crest: royal purple and trophy gold, with the crest in the sidebar and gold buttons.
-- **Dark and light modes.** The half-moon button in the top bar switches between Auto (follows your computer), Dark and Light.
-- League art on the welcome screen, the Overview banner and each manager's page. Teams on the way up get the celebrating players; teams on the way down get the slumped ones.
-- Phones and other tall screens get their own portrait background on the login screen.
-- **Trade finder leans young.** Players past their position's peak (RB 24, WR 25, TE 26, QB 27) count for less and drop off fast after RB 28, WR/TE 30, QB 33. Players younger than their peak get a small boost, and selling your own older players costs you less. Choose **Ignore age**, **Favour youth** (the default) or **Strongly favour youth** in the finder. Contenders get a softer version so they can still buy proven starters.
-
-## What changed in 2.23.0 (team version)
-
-- Each league member sees their own team: the dashboard follows whoever is logged in to Sleeper in that Chrome.
-- New **Your team** picker (Settings, and the welcome screen) to choose a league and team by username or league ID, with or without a login.
-- Viewing a team that isn't your login turns off offers, alerts and waiver claims, and shows a "Viewing as" tag.
-- A new Sleeper login in the same Chrome switches the dashboard over and stops waiver runs armed for the previous account.
-- Password splash screen, remembered for 30 days per browser.
-- Renamed to Casey's Dynasty Dashboard. It has its own extension ID, so it can sit beside a personal Waiver Vulture install.
-
-## What changed in 2.1.1
+#### 2.1.1
 
 - **Overview is about your team only.** It shows:
   - Your schedule to the playoffs: each opponent's record, last five results, scoring form, starters on bye on both sides, and your win chance.
@@ -359,7 +413,7 @@ Brings over the trade tree work from Waiver Vulture 2.23–2.27:
   - Insights, such as whether he turns down fair deals, opens with lowballs, or comes to you.
   - Every rejected or withdrawn offer, labelled with who rejected it, how it graded then and how it looks with today's values.
 
-## What changed in 2.1
+#### 2.1
 
 - **Grades:** a new scale based on each side's share of the combined value.
   - Within ±5% is a fair **B**.
@@ -387,7 +441,7 @@ The clock icon in the top bar shows recent alerts.
 
 - **Sleeper public API:** rosters, results, trades, picks, drafts, projections, season stats, trending adds, and league-mates' other leagues.
 - **Sleeper's private API, using your login:** offers involving you, the league trade block, and waiver adds. This API is unofficial and could change.
-- **KeepTradeCut:** primary values. 1QB, with TE+ values because your league has a 0.5 TE premium.
+- **KeepTradeCut:** primary values, in your league's format (1QB or Superflex, with TE-premium values when the league has one). Crowdsourced by default; switch to Crowd + Trades or Tradesourced on Trade summary, Value over time or Team ledger.
 - **FantasyCalc:** second opinion, this-season values and 30-day trends.
 - **DynastyProcess:** the player ID crosswalk, and the weekly value history used to grade trades as of the week they happened.
 - **FantasyPros weekly rankings:** start/sit ranks and grades, read directly or from the DynastyProcess mirror.
