@@ -807,10 +807,11 @@ function viewValueTime() {
   const grid = gy.map((v) => `<line x1="${L}" x2="${W - R}" y1="${Y(v)}" y2="${Y(v)}" class="vg"/><text x="${L - 8}" y="${Y(v) + 4}" text-anchor="end" class="vt">${k(v)}</text>`).join('')
     + months.filter((ts) => ts >= t0).map((ts) => `<text x="${X(ts)}" y="${H - 8}" text-anchor="middle" class="vt">${esc(new Date(ts).getMonth() === 0 ? String(new Date(ts).getFullYear()) : new Date(ts).toLocaleDateString(undefined, { month: 'short' }))}</text>`).join('')
     + (fromSeason ? `<line x1="${X(V0.start)}" x2="${X(V0.start)}" y1="${T}" y2="${H - B}" class="vdraft"/><text x="${X(V0.start) + 4}" y="${T + 10}" class="vt">${new Date(V0.start).getFullYear()} rookie draft</text>` : '');
-  const strong = (t) => ui.hi === t.rid || (ui.hi == null && t.isMe);
+  const sel = (ui.sel ||= []).filter((r) => team(r));
+  const strong = (t) => (sel.length ? sel.includes(t.rid) : t.isMe);
   const lines = [...m.teams].sort((a, b) => strong(a) - strong(b)).map((t) => {
     const pts = V.series[t.rid];
-    const dim = ui.hi != null && ui.hi !== t.rid;
+    const dim = sel.length > 0 && !sel.includes(t.rid);
     const st = strong(t);
     const d = pts.map((p, i) => `${i ? 'L' : 'M'}${X(p.at).toFixed(1)},${Y(p.v).toFixed(1)}`).join('');
     return `<g class="vline${dim ? ' dim' : ''}" data-action="votHi" data-rid="${t.rid}"><path d="${d}" stroke="${color[t.rid]}" stroke-width="${st ? 3.5 : 2}" fill="none"/>${pts.map((p) => `<circle cx="${X(p.at).toFixed(1)}" cy="${Y(p.v).toFixed(1)}" r="${st ? 3.2 : 2}" fill="${color[t.rid]}"><title>${esc(t.name)} · ${esc(p.today ? 'today' : new Date(p.at).toLocaleDateString())}: ${k(p.v)}</title></circle>`).join('')}</g>`;
@@ -823,7 +824,7 @@ function viewValueTime() {
   for (let i = ends.length - 1; i >= 0; i--) ends[i].ly = Math.min(ends[i].ly, i < ends.length - 1 ? ends[i + 1].ly - gapN : bot);
   const lx = W - R + 22;
   const labels = ends.map(({ t, y, ly, x }) => {
-    const dim = ui.hi != null && ui.hi !== t.rid;
+    const dim = sel.length > 0 && !sel.includes(t.rid);
     const url = avatarUrl(t);
     const ini = `<circle cx="${lx + 10}" cy="${ly}" r="10" fill="${color[t.rid]}"/><text x="${lx + 10}" y="${ly + 4}" text-anchor="middle" class="vini">${esc((t.name || '?')[0].toUpperCase())}</text>`;
     const logo = ini + (url ? `<image href="${esc(url)}" x="${lx}" y="${ly - 10}" width="20" height="20" clip-path="url(#vclip)" preserveAspectRatio="xMidYMid slice"/>` : '');
@@ -833,9 +834,10 @@ function viewValueTime() {
   const fromSeg = Object.keys(W3).length > 1 ? `<span class="tseg2">${[['startup', 'Since the startup draft'], ['season', 'This season'], ['draft', 'Since this year\'s rookie draft']].filter(([k2]) => W3[k2]).map(([k2, l]) => `<button class="${from === k2 ? 'on' : ''}" data-action="votFrom" data-from="${k2}" title="From ${esc(dstrY(W3[k2].start))}">${l}</button>`).join('')}</span>` : '';
   const weeklyTot = m.teams.reduce((s2, t) => s2 + (V.rows[t.rid].weeklyNow || 0), 0), endTot = m.teams.reduce((s2, t) => s2 + V.rows[t.rid].end, 0);
   const gap = endTot ? weeklyTot / endTot - 1 : 0;
-  const chart = `<div class="card"><div class="sec-h"><h3 style="margin:0">Team value, week by week</h3>${fromSeg}</div>
+  const chart = `<div class="card"><div class="sec-h"><h3 style="margin:0">Team value, week by week</h3><span class="row" style="gap:8px">${fromSeg}<button class="btn sm primary" data-action="exportVot">${icon('download')}Export PNG${sel.length ? ` · ${sel.length} team${sel.length === 1 ? '' : 's'}` : ' · league'}</button></span></div>
+    <div class="row small muted" style="margin:6px 0 0;gap:8px">${sel.length ? `Showing ${sel.map((r) => esc(tname(r))).join(', ')}. <button class="link" data-action="votHi" data-rid="">Show the whole league</button>` : 'Click teams on the chart or in the table to pick them out; the export then shows just those teams.'}</div>
     <svg class="votchart" viewBox="0 0 ${W} ${H}" role="img" aria-label="Each team's value by week">${defs}${grid}${lines}${labels}</svg>
-    <p class="faint small" style="margin:6px 0 0">Each week values that week's roster with that week's DynastyProcess values, put on the dashboard's scale by rank (the Nth most valuable asset that week gets the value of today's Nth most valuable asset). The last point is today's dashboard value.${V.endSource === 'book' ? '' : ' Today\'s values didn\'t load, so the last point uses the latest weekly values.'}${Math.abs(gap) > 0.04 && V.endSource === 'book' ? ` Heads up: the latest weekly values put the league ${Math.abs(Math.round(gap * 100))}% ${gap > 0 ? 'above' : 'below'} today's dashboard values, so the last step of every line includes that difference.` : ''} Click a team to pick it out.</p></div>`;
+    <p class="faint small" style="margin:6px 0 0">Each week values that week's roster with that week's DynastyProcess values, put on the dashboard's scale by rank (the Nth most valuable asset that week gets the value of today's Nth most valuable asset). The last point is today's dashboard value.${V.endSource === 'book' ? '' : ' Today\'s values didn\'t load, so the last point uses the latest weekly values.'}${Math.abs(gap) > 0.04 && V.endSource === 'book' ? ` Heads up: the latest weekly values put the league ${Math.abs(Math.round(gap * 100))}% ${gap > 0 ? 'above' : 'below'} today's dashboard values, so the last step of every line includes that difference.` : ''} </p></div>`;
 
   // -- bridge table
   const bridgeCols = [
@@ -870,7 +872,7 @@ function viewValueTime() {
   const anyEarlier = m.teams.some((t) => allOf(t.rid) > V.rows[t.rid].tradeCount);
   const bridge = `<div class="card" style="margin-top:14px"><h3>Where each team's value came from</h3>
     <div class="scroll"><table class="t vot"><thead><tr><th>Team</th>${bridgeCols.map(([key, l, tip]) => `<th class="num sortable${sortKey === key ? ' on' : ''}" data-action="votSort" data-key="${key}" title="${esc(tip)}">${l}${sortKey === key ? ' ↓' : ''}</th>`).join('')}</tr></thead>
-    <tbody>${rows.map((t) => { const r = V.rows[t.rid]; return `<tr class="${t.isMe ? 'me' : ''}${ui.hi === t.rid ? ' hl' : ''}"><td><div class="who"><i class="vdot" style="background:${color[t.rid]}"></i>${teamAvatar(t)}${tlink(t.rid)}</div></td>${bridgeCols.map(([key]) => cell(key, r[key], r, t)).join('')}</tr>`; }).join('')}
+    <tbody>${rows.map((t) => { const r = V.rows[t.rid]; return `<tr class="${t.isMe ? 'me' : ''}${sel.includes(t.rid) ? ' hl' : ''}"><td><div class="who"><button class="vdot-btn" data-action="votHi" data-rid="${t.rid}" title="Pick out this team"><i class="vdot" style="background:${color[t.rid]}"></i></button>${teamAvatar(t)}${tlink(t.rid)}</div></td>${bridgeCols.map(([key]) => cell(key, r[key], r, t)).join('')}</tr>`; }).join('')}
       <tr class="tot"><td><b>League</b></td>${bridgeCols.map(([key]) => cell(key, tot(key))).join('')}</tr></tbody></table></div>
     <div class="faint small" style="margin:8px 0 0;display:grid;gap:4px">
       <div>${startName} + Trades${fromSeason ? ' + Rookie draft' : ''} + Waivers added − Value lost + Appreciation = Today.</div>
@@ -3883,6 +3885,80 @@ async function exportMock(el) {
   finally { if (el) { el.disabled = false; el.innerHTML = label; } }
 }
 
+function valueTimePoster() {
+  const m = S.model;
+  const VT = m.valueTime;
+  const ui = S.ui.vot || {};
+  const W3 = VT.windows;
+  const from = W3[ui.from] ? ui.from : W3.startup ? 'startup' : W3.season ? 'season' : 'draft';
+  const V = W3[from];
+  const sel = (ui.sel || []).filter((r) => team(r));
+  const shown = sel.length ? m.teams.filter((t) => sel.includes(t.rid)) : m.teams;
+  const color = Object.fromEntries([...m.teams].sort((a, b) => a.rid - b.rid).map((t, i) => [t.rid, t.isMe ? '#f2b632' : VOT_COLORS[(i % (VOT_COLORS.length - 1)) + 1]]));
+  const startName = from === 'startup' ? 'Startup draft' : from === 'season' ? 'Season start' : 'Rookie draft';
+  const dY = (ts) => new Date(ts).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+  const sg = (v) => `${v > 0 ? '+' : v < 0 ? '−' : ''}${k(Math.abs(v))}`;
+  const tone = (v) => (v > 250 ? '#5fe39a' : v < -250 ? '#ff8a8a' : '#c4b3e6');
+  const R = (t) => V.rows[t.rid];
+  const rows = [...shown].sort((a, b) => R(b).end - R(a).end);
+  const by = (f) => [...shown].sort((a, b) => f(R(b)) - f(R(a)));
+  const awards = shown.length >= 4 ? [
+    { label: 'Biggest climb', t: by((r) => r.change)[0], stat: (r) => `${sg(r.change)} (${r.start ? Math.round((r.change / r.start) * 100) : 0}%)` },
+    { label: 'Best trader', t: by((r) => r.trades)[0], stat: (r) => `${sg(r.trades)} from ${r.tradeCount} trades` },
+    { label: 'Waiver hawk', t: by((r) => r.added - r.lost)[0], stat: (r) => `${sg(r.added - r.lost)} net on waivers` },
+    { label: 'Biggest slide', gloom: true, t: by((r) => -r.change)[0], stat: (r) => `${sg(r.change)} (${r.start ? Math.round((r.change / r.start) * 100) : 0}%)` },
+  ].map((a) => ({ label: a.label, gloom: a.gloom, name: a.t.name, avatar: avatarUrl(a.t), stat: a.stat(R(a.t)) })) : [];
+  const fromSeason = from !== 'draft';
+  return {
+    banner: 4,
+    file: `caseys-value-over-time-${sel.length ? shown.map((t) => t.name).join('-').toLowerCase().replace(/[^a-z0-9]+/g, '-').slice(0, 40) : 'league'}-${fileStamp()}.png`,
+    title: 'Value over time', eyebrow: leagueName(),
+    subtitle: `${sel.length ? shown.map((t) => t.name).join(' · ') : 'Every team'} · ${dY(V.start)} to today`,
+    awards,
+    chart: {
+      title: `Team value, week by week (${startName.toLowerCase()} to today)`,
+      series: shown.map((t) => ({ name: t.name, color: color[t.rid], avatar: avatarUrl(t), strong: sel.length ? true : t.isMe, points: V.series[t.rid] })),
+      marks: fromSeason ? [{ at: W3.draft.start, label: `${new Date(W3.draft.start).getFullYear()} rookie draft` }] : [],
+    },
+    groups: [
+      { label: '', cols: [{ key: '#', label: '#', w: 70, align: 'center' }, { key: 'name', label: 'Team', align: 'left' }] },
+      { label: 'Start', cols: [{ key: 'start', label: startName, sub: dY(V.start), w: 150 }] },
+      { label: 'What changed', cols: [
+        { key: 'trades', label: 'Trades', sub: 'net then', w: 135 },
+        ...(fromSeason ? [{ key: 'draft', label: 'Rookie drafts', sub: 'players − picks', w: 150 }] : []),
+        { key: 'added', label: 'Waivers added', sub: 'value that week', w: 150 },
+        { key: 'lost', label: 'Value lost', sub: 'drops, that week', w: 150 },
+        { key: 'residual', label: 'Appreciation', sub: 'while held', w: 150 },
+      ] },
+      { label: 'Today', hero: true, cols: [
+        { key: 'end', label: 'Value today', sub: 'dashboard value', w: 160, hero: true },
+        { key: 'change', label: 'Change', sub: `vs ${startName.toLowerCase()}`, w: 220, hero: true },
+      ] },
+    ],
+    rows: rows.map((t) => {
+      const r = R(t);
+      return {
+        name: t.name, sub: t.teamName && t.teamName.toLowerCase() !== t.name.toLowerCase() ? t.teamName : '', avatar: avatarUrl(t), isMe: t.isMe,
+        cells: {
+          start: { text: k(r.start), color: '#e9dcff' },
+          trades: { text: r.tradeCount ? sg(r.trades) : '—', color: r.tradeCount ? tone(r.trades) : '#8f7bb6' },
+          draft: { text: r.draftCount ? sg(r.draft) : '—', color: r.draftCount ? tone(r.draft) : '#8f7bb6' },
+          added: { text: r.added ? `+${k(r.added)}` : '0', color: r.added ? '#5fe39a' : '#8f7bb6' },
+          lost: { text: r.lost ? `−${k(r.lost)}` : '0', color: r.lost ? '#ff8a8a' : '#8f7bb6' },
+          residual: { text: sg(r.residual), color: tone(r.residual) },
+          end: { text: k(r.end), bold: true },
+          change: { text: `${sg(r.change)}${r.start ? ` (${r.change >= 0 ? '+' : ''}${Math.round((r.change / r.start) * 100)}%)` : ''}`, color: tone(r.change), bold: true },
+        },
+      };
+    }),
+    notes: [
+      `${startName} + Trades${fromSeason ? ' + Rookie drafts' : ''} + Waivers added − Value lost + Appreciation = Value today.`,
+      'Trades are Trade summary\'s "Net then" figures. Waivers and drops are valued the week they happened; Appreciation is how every asset moved while the team held it.',
+      'Weekly values: DynastyProcess, put on the dashboard\'s scale by rank. Today: the dashboard\'s KTC/FantasyCalc blend.',
+    ],
+  };
+}
+
 async function exportPoster(el, build) {
   if (!S.model) return;
   const label = el ? el.innerHTML : '';
@@ -4396,7 +4472,7 @@ const actions = {
     await runSync();
   },
   async lockGate() { await lock(); },
-  votHi(el) { const r = el.dataset.rid === '' ? null : Number(el.dataset.rid); S.ui.vot.hi = S.ui.vot.hi === r ? null : r; render(); },
+  votHi(el) { const v = S.ui.vot; v.sel ||= []; if (el.dataset.rid === '') v.sel = []; else { const r = Number(el.dataset.rid); v.sel = v.sel.includes(r) ? v.sel.filter((x) => x !== r) : [...v.sel, r]; } render(); },
   votSort(el) { S.ui.vot.sort = el.dataset.key; render(); },
   votPos(el) { const p = el.dataset.pos; S.ui.vot.pos[p] = !S.ui.vot.pos[p]; if (!Object.values(S.ui.vot.pos).some(Boolean)) S.ui.vot.pos[p] = true; render(); },
   votWhen(el) { S.ui.vot.when = el.dataset.when; render(); },
@@ -4407,6 +4483,7 @@ const actions = {
   exportSummary(el) { return exportPoster(el, tradeSummaryPoster); },
   exportSeason(el) { return exportPoster(el, seasonPoster); },
   exportMock(el) { return exportMock(el); },
+  exportVot(el) { return exportPoster(el, valueTimePoster); },
   async saveSettings() {
     const username = ($('#cfg-username') || {}).value || '';
     const leagueId = S.cfg.leagueId || '';

@@ -174,6 +174,10 @@ The sidebar on the left has every page. The top bar has search (players and mana
   - **Who drafts well in this league,** and every past rookie draft with what each pick became.
   - **Prospect board:** FantasyPros dynasty rookie rankings when they cover next year's class. Otherwise, paste any ranking list. You can star your guys.
 
+## What changed in 2.37.0
+- **Value over time exports a PNG.** It has the league art and crest, award cards (biggest climb, best trader, waiver hawk, biggest slide), the week-by-week chart with team logos, and the full bridge table.
+- **Pick teams to compare.** Click teams on the chart or the coloured dot in the table to pick them out; the chart dims the rest and the export shows just those teams. "Show the whole league" clears the selection.
+
 ## What changed in 2.36.0
 - **Trades audit.** Click a team's Trades number on Value over time to list every trade it made: date, season, partner, what it got and gave, and Trade summary's "Net then" and "Net now" for each, with subtotals that match Trade summary's "This season" and "Earlier seasons" columns. Trades before the chosen window are listed in grey.
 - **Trade summary** gets all-seasons **Trades** and **Net then** columns next to all-seasons Net now. "Net then", all seasons, is the number in Value over time's Trades column.

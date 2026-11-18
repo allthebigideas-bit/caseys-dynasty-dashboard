@@ -190,6 +190,72 @@ async function loadArt() {
   return { hero, bg, crest, banners };
 }
 
+const kfmt = (v) => (Math.abs(v) >= 1000 ? `${(v / 1000).toFixed(Math.abs(v) >= 100000 ? 0 : 1)}k` : String(Math.round(v)));
+
+// Line chart panel: one line per series, with each team's logo and name at the end.
+// chart = { title, series: [{ name, color, avatar, strong, points: [{ at, v }] }], marks: [{ at, label }] }
+function lineChart(ctx, x, y, w, h, chart, imgs) {
+  ctx.fillStyle = 'rgba(29,13,61,.92)'; rr(ctx, x, y, w, h, 18); ctx.fill();
+  ctx.strokeStyle = 'rgba(242,182,50,.45)'; ctx.lineWidth = 2; rr(ctx, x, y, w, h, 18); ctx.stroke();
+  ctx.fillStyle = GOLD2; ctx.font = font(16, 800); ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+  ctx.fillText((chart.title || '').toUpperCase().split('').join(' '), x + 28, y + 40);
+  const L = x + 96, R = x + w - 300, T = y + 70, B = y + h - 56;
+  const all = chart.series.flatMap((sr) => sr.points);
+  if (!all.length) return;
+  const t0 = Math.min(...all.map((p) => p.at)), t1 = Math.max(...all.map((p) => p.at));
+  let lo = Math.min(...all.map((p) => p.v)), hi = Math.max(...all.map((p) => p.v));
+  const pad = (hi - lo) * 0.08 || hi * 0.05 || 1; lo = Math.max(0, lo - pad); hi += pad;
+  const X = (t) => L + ((t - t0) / Math.max(1, t1 - t0)) * (R - L);
+  const Y = (v) => T + (1 - (v - lo) / Math.max(1, hi - lo)) * (B - T);
+  // grid
+  ctx.font = font(17, 600); ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
+  for (let i = 0; i <= 4; i++) {
+    const v = lo + (i / 4) * (hi - lo), yy = Y(v);
+    ctx.strokeStyle = 'rgba(196,179,230,.16)'; ctx.lineWidth = 1; ctx.setLineDash([4, 6]);
+    ctx.beginPath(); ctx.moveTo(L, yy); ctx.lineTo(R, yy); ctx.stroke(); ctx.setLineDash([]);
+    ctx.fillStyle = MUTED; ctx.fillText(kfmt(v), L - 14, yy);
+  }
+  ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
+  const d = new Date(t0); d.setDate(1); d.setMonth(d.getMonth() + 1);
+  const months = [];
+  for (; d.getTime() <= t1; d.setMonth(d.getMonth() + 1)) months.push(new Date(d));
+  const every = Math.max(1, Math.ceil(months.length / 14));
+  months.forEach((m, i) => { if (i % every) return; ctx.fillStyle = MUTED; ctx.fillText(m.getMonth() === 0 ? String(m.getFullYear()) : m.toLocaleDateString(undefined, { month: 'short' }), X(m.getTime()), B + 34); });
+  for (const mk of chart.marks || []) {
+    if (mk.at < t0 || mk.at > t1) continue;
+    ctx.strokeStyle = 'rgba(242,182,50,.55)'; ctx.setLineDash([6, 6]); ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.moveTo(X(mk.at), T); ctx.lineTo(X(mk.at), B); ctx.stroke(); ctx.setLineDash([]);
+    ctx.fillStyle = GOLD2; ctx.font = font(15, 700); ctx.textAlign = 'left'; ctx.fillText(mk.label, X(mk.at) + 8, T + 14);
+  }
+  // lines: faint ones first
+  const order = chart.series.map((sr, i) => i).sort((a, b) => (chart.series[a].strong ? 1 : 0) - (chart.series[b].strong ? 1 : 0));
+  for (const i of order) {
+    const sr = chart.series[i];
+    ctx.strokeStyle = sr.color; ctx.lineWidth = sr.strong ? 5 : 2.6; ctx.globalAlpha = sr.faint ? 0.3 : 1; ctx.lineJoin = 'round';
+    ctx.beginPath(); sr.points.forEach((p, j) => (j ? ctx.lineTo(X(p.at), Y(p.v)) : ctx.moveTo(X(p.at), Y(p.v)))); ctx.stroke();
+    ctx.globalAlpha = 1;
+  }
+  // end labels, spaced apart
+  const n = chart.series.length, GAP = Math.min(44, (B - T) / Math.max(1, n - 1));
+  const ends = chart.series.map((sr, i) => { const p = sr.points[sr.points.length - 1]; return { i, y: Y(p.v), ly: Y(p.v), x: X(p.at), v: p.v }; }).sort((a, b) => a.y - b.y);
+  for (let j = 0; j < ends.length; j++) ends[j].ly = Math.max(ends[j].ly, j ? ends[j - 1].ly + GAP : T);
+  for (let j = ends.length - 1; j >= 0; j--) ends[j].ly = Math.min(ends[j].ly, j < ends.length - 1 ? ends[j + 1].ly - GAP : B);
+  const lx = R + 30;
+  for (const e of ends) {
+    const sr = chart.series[e.i];
+    ctx.globalAlpha = sr.faint ? 0.45 : 1;
+    ctx.strokeStyle = sr.color; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.moveTo(e.x + 4, e.y); ctx.lineTo(lx - 4, e.ly); ctx.stroke();
+    ctx.beginPath(); ctx.arc(lx + 17, e.ly, 19, 0, Math.PI * 2); ctx.strokeStyle = sr.color; ctx.lineWidth = 3; ctx.stroke();
+    avatar(ctx, imgs[e.i], sr.name, lx, e.ly - 17, 34);
+    ctx.fillStyle = sr.strong ? GOLD2 : TEXT; ctx.font = font(sr.strong ? 21 : 19, sr.strong ? 800 : 700); ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+    ctx.fillText(fitText(ctx, sr.name, 170), lx + 46, e.ly - 9);
+    ctx.fillStyle = MUTED; ctx.font = font(16, 600);
+    ctx.fillText(kfmt(e.v), lx + 46, e.ly + 12);
+    ctx.globalAlpha = 1;
+  }
+}
+
 /**
  * spec = {
  *   file, title, eyebrow, subtitle,
@@ -204,13 +270,15 @@ export async function drawPoster(spec) {
   const art = await loadArt();
   const avs = await Promise.all(spec.rows.map((r) => loadRemote(r.avatar)));
   const awardAvs = await Promise.all((spec.awards || []).map((a) => loadRemote(a.avatar)));
+  const chartAvs = spec.chart ? await Promise.all(spec.chart.series.map((x) => loadRemote(x.avatar))) : [];
 
   const ROW = 70, HEAD1 = 40, HEAD2 = 62;
   const HEADER = 430, AWARDS = (spec.awards || []).length ? 190 : 0;
+  const CHART = spec.chart ? 700 : 0;
   const tableH = HEAD1 + HEAD2 + spec.rows.length * ROW + 24;
   const notesH = 40 + (spec.notes || []).length * 30;
   const FOOT = 250;
-  const H = HEADER + AWARDS + tableH + notesH + FOOT;
+  const H = HEADER + AWARDS + CHART + tableH + notesH + FOOT;
 
   const c = document.createElement('canvas');
   c.width = W; c.height = H;
@@ -225,6 +293,8 @@ export async function drawPoster(spec) {
     spec.awards.forEach((a, i) => award(ctx, PAD + i * (aw + gap), y + 26, aw, a, awardAvs[i]));
     y += AWARDS;
   }
+
+  if (CHART) { lineChart(ctx, PAD, y + 10, W - PAD * 2, CHART - 40, spec.chart, chartAvs); y += CHART; }
 
   // table panel
   const tx = PAD, tw = W - PAD * 2;
