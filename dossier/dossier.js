@@ -109,7 +109,66 @@ async function load() {
   const lid = S.raw && S.raw.league && S.raw.league.league_id;
   S.own = lid ? ((await chrome.storage.local.get(`own:${lid}`))[`own:${lid}`] || {}) : {};
   S.ownIdx = null;
+  await loadCrest();
 }
+
+// ---- custom league logo: right-click the sidebar crest -----------------------------------------
+// Saved per league in this browser (chrome.storage.local, "crest:<leagueId>") and used in the
+// sidebar and every exported image.
+const crestKey = () => `crest:${(S.raw && S.raw.league && S.raw.league.league_id) || 'default'}`;
+function crestSrc() { return S.crest || '../splash/crest.png'; }
+async function loadCrest() {
+  const key = crestKey();
+  S.crest = (await chrome.storage.local.get(key))[key] || null;
+  globalThis.CDD_CREST = S.crest || null;
+}
+function crestMenu(x, y) {
+  closeCrestMenu();
+  const d = document.createElement('div');
+  d.className = 'ctx-menu';
+  d.id = 'crest-menu';
+  d.style.left = `${x}px`; d.style.top = `${y}px`;
+  d.innerHTML = `<button data-crest="pick">${icon('download')}Change logo…</button>${S.crest ? `<button data-crest="reset">Use the league crest</button>` : ''}`;
+  document.body.appendChild(d);
+}
+function closeCrestMenu() { const d = document.getElementById('crest-menu'); if (d) d.remove(); }
+function pickCrest() {
+  const inp = document.createElement('input');
+  inp.type = 'file'; inp.accept = 'image/*';
+  inp.onchange = async () => {
+    const f = inp.files && inp.files[0];
+    if (!f) return;
+    try {
+      const img = await createImageBitmap(f);
+      const max = 640, sc = Math.min(1, max / Math.max(img.width, img.height));
+      const c = document.createElement('canvas');
+      c.width = Math.round(img.width * sc); c.height = Math.round(img.height * sc);
+      c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+      const url = c.toDataURL('image/png');
+      await chrome.storage.local.set({ [crestKey()]: url });
+      S.crest = url; globalThis.CDD_CREST = url;
+      render();
+    } catch (e) { S.error = `Couldn't use that image: ${e.message}`; render(); }
+  };
+  inp.click();
+}
+async function resetCrest() {
+  await chrome.storage.local.remove(crestKey());
+  S.crest = null; globalThis.CDD_CREST = null;
+  render();
+}
+document.addEventListener('contextmenu', (e) => {
+  const logo = e.target.closest && e.target.closest('.logo.big');
+  if (!logo) return;
+  e.preventDefault();
+  crestMenu(e.clientX, e.clientY);
+});
+document.addEventListener('click', (e) => {
+  const b = e.target.closest && e.target.closest('[data-crest]');
+  if (b) { e.preventDefault(); const a = b.dataset.crest; closeCrestMenu(); if (a === 'pick') pickCrest(); else resetCrest(); return; }
+  closeCrestMenu();
+}, true);
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeCrestMenu(); });
 
 const SEED_NOTE = {
   name: '',
@@ -309,7 +368,7 @@ function renderSide() {
   const mgrSub = m && (S.ui.open.managers || r.page === 'manager') ? `<div class="sub">${[...m.teams].sort((a, b) => b.posture.score - a.posture.score).map((t) => `<a href="#manager/${t.rid}" class="${r.page === 'manager' && Number(r.id) === t.rid ? 'on' : ''}"><span class="dot" style="background:${t.posture.tone === 'buy' ? 'var(--violet)' : t.posture.tone === 'sell' ? 'var(--red)' : 'var(--faint)'}"></span>${esc(t.name)}${t.avoid ? ' ' + icon('note') : ''}</a>`).join('')}</div>` : '';
   const tradeSub = S.ui.open.trades || r.page === 'trades' || r.page === 'summary' ? `<div class="sub"><a href="#summary" class="${r.page === 'summary' ? 'on' : ''}">Trade summary</a>${[['ledger', 'League trades'], ['offers', 'My offers'], ['incoming', 'Offers to you'], ['lab', 'Trade lab'], ['finder', 'Trade finder'], ['week', 'This week']].map(([id, l]) => `<a href="#trades/${id}" class="${r.page === 'trades' && (r.id || 'ledger') === id ? 'on' : ''}">${esc(l)}${id === 'offers' && pend ? ` <span class="pill sell" style="padding:0 6px">${pend}</span>` : ''}</a>`).join('')}</div>` : '';
   $('#side').innerHTML = `
-    <a class="logo big" href="#overview" title="Casey's Dynasty Dashboard"><img src="../splash/crest.png" alt="Casey's Dynasty League"></a>
+    <a class="logo big" href="#overview" title="Right-click to change the logo"><img src="${esc(crestSrc())}" alt="${esc((L && L.name) || "Casey's Dynasty League")}"></a>
     ${switcher(L, me)}
     <div class="nav-h">Main</div>
     <nav class="nav">

@@ -174,6 +174,9 @@ The sidebar on the left has every page. The top bar has search (players and mana
   - **Who drafts well in this league,** and every past rookie draft with what each pick became.
   - **Prospect board:** FantasyPros dynasty rookie rankings when they cover next year's class. Otherwise, paste any ranking list. You can star your guys.
 
+## What changed in 2.43.0
+- **Change the logo.** Right-click the logo at the top of the sidebar and choose "Change logo…" to use your own image (it's resized and kept in this browser, separately for each league). It shows in the sidebar and on every exported image. "Use the league crest" puts the original back.
+
 ## What changed in 2.42.0
 - **Rookie draft: view any team.** A "Viewing" picker at the top of the Rookie draft page switches the page to any manager: their projected picks, draft capital, roster needs and tips, with their picks highlighted in the draft order. "Export mock draft" gives their picks the gold border. Your own team stays the default.
 
