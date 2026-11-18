@@ -103,6 +103,9 @@ async function load() {
   S.draftBoard = r['draft:board'] ? repairBoard(r['draft:board']) : null;
   if (S.draftBoard && S.draftBoard.repaired) { delete S.draftBoard.repaired; chrome.storage.local.set({ 'draft:board': S.draftBoard }); }
   S.draftStars = r['draft:stars'] || {};
+  const lid = S.raw && S.raw.league && S.raw.league.league_id;
+  S.own = lid ? ((await chrome.storage.local.get(`own:${lid}`))[`own:${lid}`] || {}) : {};
+  S.ownIdx = null;
 }
 
 const SEED_NOTE = {
@@ -3708,6 +3711,110 @@ function viewSettings() {
   </div>`;
 }
 
+
+// ---- player card: market and stats ------------------------------------------------------------
+
+// How widely a player is rostered across the leagues the league-mate scan has
+// seen (dynasty leagues counted separately). Built once per load.
+function ownership(sid) {
+  if (!S.ownIdx) {
+    const fresh = Object.values(S.own || {}).filter((l) => l && Date.now() - (l.at || 0) < 7 * 86400e3);
+    const idx = { all: fresh.length, dyn: fresh.filter((l) => l.type === 2).length, cnt: {}, dcnt: {} };
+    for (const l of fresh) for (const id of new Set(l.ids || [])) { idx.cnt[id] = (idx.cnt[id] || 0) + 1; if (l.type === 2) idx.dcnt[id] = (idx.dcnt[id] || 0) + 1; }
+    S.ownIdx = idx;
+  }
+  const x = S.ownIdx;
+  return { all: x.all, dyn: x.dyn, n: x.cnt[sid] || 0, nd: x.dcnt[sid] || 0 };
+}
+
+// Sleeper-wide adds and drops (trending), 24 hours and 7 days, fetched when a
+// card first opens and kept for 30 minutes.
+async function loadTrend() {
+  if (S.trend && Date.now() - S.trend.at < 30 * 60e3) return;
+  if (S.trendBusy) return;
+  S.trendBusy = true;
+  const get = async (kind, hrs) => {
+    const r = await fetch(`https://api.sleeper.app/v1/players/nfl/trending/${kind}?lookback_hours=${hrs}&limit=500`);
+    if (!r.ok) throw new Error(`Sleeper ${r.status}`);
+    return Object.fromEntries(((await r.json()) || []).map((x) => [x.player_id, x.count]));
+  };
+  try {
+    const [a24, d24, a7, d7] = await Promise.all([get('add', 24), get('drop', 24), get('add', 168), get('drop', 168)]);
+    S.trend = { at: Date.now(), a24, d24, a7, d7 };
+  } catch (e) {
+    S.trend = { at: Date.now(), error: e.message, a24: {}, d24: {}, a7: {}, d7: {} };
+  }
+  S.trendBusy = false;
+  if (S.ui.drawer) renderDrawer();
+}
+
+// This league's adds, drops and waiver claims involving the player.
+function leagueMoves(sid) {
+  const out = [];
+  for (const t of (S.raw && S.raw.txns) || []) {
+    if (t.status !== 'complete' || t.type === 'trade') continue;
+    const add = t.adds && t.adds[sid] != null ? t.adds[sid] : null;
+    const drop = t.drops && t.drops[sid] != null ? t.drops[sid] : null;
+    if (add == null && drop == null) continue;
+    const bid = t.settings && t.settings.waiver_bid;
+    out.push({ at: t.created, add, drop, how: t.type === 'waiver' ? `waiver${bid != null ? ` ($${bid})` : ''}` : 'free agent' });
+  }
+  return out.sort((a, b) => b.at - a.at);
+}
+
+function marketCard(sid) {
+  const o = ownership(sid);
+  const T = S.trend;
+  const fmtN = (n) => (n ? n.toLocaleString() : '0');
+  const ownTile = (label, n, of) => `<div><span>${label}</span><b>${of ? pct(n / of) : '—'}</b><span class="faint small">${of ? `${n} of ${of} leagues` : 'Settings → Rescan other leagues'}</span></div>`;
+  const moves = leagueMoves(sid).slice(0, 6);
+  return `<div class="card" style="margin-top:14px"><h3>Market</h3>
+    <div class="facts">${ownTile('Rostered, dynasty', o.nd, o.dyn)}${ownTile('Rostered, all', o.n, o.all)}</div>
+    <p class="faint small" style="margin:6px 0 10px">Across the Sleeper leagues your league-mates play in this season (refreshed daily).</p>
+    ${!T ? '<p class="muted small">Loading Sleeper adds and drops…</p>' : T.error ? `<p class="muted small">Sleeper adds and drops unavailable: ${esc(T.error)}</p>` : `
+      <table class="t"><thead><tr><th>All of Sleeper</th><th class="num">Adds</th><th class="num">Drops</th><th class="num">Net</th></tr></thead><tbody>
+        ${[['Last 24 hours', T.a24, T.d24], ['Last 7 days', T.a7, T.d7]].map(([l, a, d]) => { const net = (a[sid] || 0) - (d[sid] || 0); return `<tr><td>${l}</td><td class="num up">${fmtN(a[sid])}</td><td class="num down">${fmtN(d[sid])}</td><td class="num ${net > 0 ? 'up' : net < 0 ? 'down' : ''}"><b>${net > 0 ? '+' : ''}${net.toLocaleString()}</b></td></tr>`; }).join('')}
+      </tbody></table><p class="faint small" style="margin:6px 0 0">Sleeper only reports its most-added and most-dropped players; 0 means he isn't among them.</p>`}
+    ${moves.length ? `<h4 style="margin:14px 0 6px;font-size:13px">In this league</h4>${moves.map((x) => `<div class="row small" style="justify-content:space-between;padding:3px 0"><span>${x.add != null ? `<span class="up">Added</span> by ${esc(tname(x.add))}` : `<span class="down">Dropped</span> by ${esc(tname(x.drop))}`}${x.add != null && x.drop != null && x.add !== x.drop ? `, dropped by ${esc(tname(x.drop))}` : ''} <span class="faint">· ${esc(x.how)}</span></span><span class="faint">${esc(dateStr(x.at))}</span></div>`).join('')}` : ''}
+  </div>`;
+}
+
+function statsCard(sid, pos) {
+  const W = S.weekly;
+  if (!W || !W.weeks) return '';
+  const wk = Object.keys(W.weeks).map(Number).sort((a, b) => a - b);
+  const rows = wk.map((w) => ({ w, r: W.weeks[w][sid] || null }));
+  const played = rows.filter((x) => x.r);
+  if (!played.length) return `<div class="card" style="margin-top:14px"><h3>${W.season} season</h3><p class="muted">No games played yet this season.</p></div>`;
+  const sum = (i) => played.reduce((s2, x) => s2 + (Number(x.r[i]) || 0), 0);
+  const has = (i) => played.some((x) => x.r[i] != null);
+  const g = played.length, pts = sum(0);
+  const snapPct = has(1) && has(2) ? sum(1) / Math.max(1, sum(2)) : null;
+  const line = [];
+  if (pos === 'QB') {
+    if (has(15)) line.push(['Comp/Att', `${sum(15)}/${sum(6)}`]);
+    if (has(9)) line.push(['Pass yds', Math.round(sum(9)).toLocaleString()]);
+    if (has(10)) line.push(['Pass TD', sum(10)]);
+    if (has(14)) line.push(['INT', sum(14)]);
+    line.push(['Rush yds', Math.round(sum(11))]);
+  } else {
+    if (pos !== 'RB' || has(3)) line.push(['Targets', sum(3)], ['Catches', sum(4)]);
+    if (has(12)) line.push(['Rec yds', Math.round(sum(12))]);
+    if (pos === 'RB' || sum(5) > 3) line.push(['Carries', sum(5)]);
+    if (has(11) && (pos === 'RB' || sum(11) > 20)) line.push(['Rush yds', Math.round(sum(11))]);
+  }
+  if (has(13)) line.push(['TD', sum(13)]);
+  if (snapPct != null) line.push(['Snap share', pct(snapPct)]);
+  const max = Math.max(1, ...played.map((x) => x.r[0]));
+  const avg = pts / g;
+  const bars = rows.map(({ w, r }) => `<div class="wkbar" title="Week ${w}: ${r ? `${r[0]} pts` : 'did not play'}"><i style="height:${r ? Math.max(3, (r[0] / max) * 100) : 0}%" class="${!r ? '' : r[0] >= avg ? 'hi' : 'lo'}"></i><span>${w}</span></div>`).join('');
+  return `<div class="card" style="margin-top:14px"><h3>${W.season} season</h3>
+    <div class="facts"><div><span>Games</span><b>${g}</b></div><div><span>Points</span><b>${pts.toFixed(1)}</b></div><div><span>Per game</span><b>${avg.toFixed(1)}</b></div></div>
+    <div class="statline">${line.map(([l, v]) => `<div><span>${l}</span><b>${v}</b></div>`).join('')}</div>
+    <div class="wkbars" role="img" aria-label="League-scored points by week">${bars}</div>
+    <p class="faint small" style="margin:4px 0 0">Points in this league's scoring, by week. Gold: at or above his average.</p></div>`;
+}
+
 // ---- player drawer ---------------------------------------------------------------------------
 
 function renderDrawer() {
@@ -3721,12 +3828,15 @@ function renderDrawer() {
   const pj = m.aging && m.aging.players[sid];
   const fp = S.aux.fpBySid && S.aux.fpBySid[sid];
   const trades = m.leagueTrades.concat(m.histTrades).filter((nt) => nt.rids.some((r) => nt.sides[r].inP.includes(sid)));
+  loadTrend();
   el.innerHTML = `<div class="drawer-bg" data-action="closeDrawer"></div><aside class="drawer" role="dialog" aria-label="${esc(p.name)}">
     <button class="iconbtn close" data-action="closeDrawer" aria-label="Close">${icon('x')}</button>
     <div style="text-align:center">${headshot(sid, 'lg ring')}<h2 style="margin:10px 0 2px;font-size:19px">${esc(p.name)}</h2><div class="muted">${esc(p.pos)} · ${esc(p.team || 'FA')}${p.age ? ` · age ${p.age.toFixed(1)}` : ''}${p.inj ? ` · <span class="down">${esc(p.inj)}</span>` : ''}</div>
       <div style="margin-top:8px">${owner ? `${teamAvatar(owner)} ${tlink(owner.rid)}` : '<span class="pill good">Free agent</span>'}</div></div>
     <div class="facts" style="margin-top:16px"><div><span>Dynasty value</span><b>${k(v.v)}</b></div><div><span>KTC</span><b>${k(v.ktc)}</b></div><div><span>FantasyCalc</span><b>${k(v.fc)}</b></div><div><span>Redraft</span><b>${k(v.redraft)}</b></div></div>
     ${fp ? `<p class="muted" style="margin-top:12px">This week: ${esc(fp.posRank || '')} ${fp.grade ? grade(fp.grade) : ''} ${esc(fp.opp || '')}</p>` : ''}
+    ${statsCard(sid, p.pos)}
+    ${marketCard(sid)}
     ${pj ? `<div class="card" style="margin-top:14px"><h3>Projection</h3><p class="lede">${esc(pj.tier)} ${esc(pj.pos)} (${ordinal(pj.posRank)} by points per game), ${esc(pj.phase)}${pj.primeYears ? `, ${pj.primeYears} prime year${pj.primeYears === 1 ? '' : 's'} left` : ''}.</p>
       ${pj.seasons.map((s) => `<div class="meter" style="margin-bottom:8px"><div class="row"><span>${s.season}${s.age ? ` (age ${Math.floor(s.age)})` : ''}</span><span>${s.ppg.toFixed(1)} pts/g</span></div>${bar(s.ppg / Math.max(...pj.seasons.map((x) => x.ppg), 1), pj.phase === 'declining' ? 'orange' : 'green')}</div>`).join('')}
       <p class="faint small">Based on ${esc(pj.parts.map((x) => `${x.src}${x.gp ? ` (${x.gp} g)` : ''}`).join(', '))}.</p></div>` : ''}

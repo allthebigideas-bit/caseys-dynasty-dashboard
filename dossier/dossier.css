@@ -1263,3 +1263,14 @@ html { scroll-behavior: smooth; }
   color-scheme: dark;
   color: var(--text);
 }
+
+/* Player card: season stat line and weekly points bars. */
+.statline { display: grid; grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); gap: 8px; margin: 12px 0; }
+.statline div { padding: 7px 9px; border-radius: 9px; background: rgb(var(--accent-rgb) / .08); border: 1px solid var(--line); }
+.statline span { display: block; font-size: 10.5px; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; }
+.statline b { font-size: 15px; }
+.wkbars { display: flex; align-items: flex-end; gap: 3px; height: 92px; padding-top: 6px; }
+.wkbar { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 100%; min-width: 0; }
+.wkbar i { display: block; width: 100%; max-width: 18px; border-radius: 4px 4px 0 0; background: rgb(var(--accent2-rgb) / .55); }
+.wkbar i.hi { background: linear-gradient(180deg, var(--gold-2), var(--gold)); }
+.wkbar span { font-size: 9.5px; color: var(--faint); margin-top: 3px; }
