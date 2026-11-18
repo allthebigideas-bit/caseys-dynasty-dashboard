@@ -174,6 +174,9 @@ The sidebar on the left has every page. The top bar has search (players and mana
   - **Who drafts well in this league,** and every past rookie draft with what each pick became.
   - **Prospect board:** FantasyPros dynasty rookie rankings when they cover next year's class. Otherwise, paste any ranking list. You can star your guys.
 
+## What changed in 2.37.1
+- The Value over time export now has the League totals row (or the total for the teams you picked) and sorts teams the same way as the table on screen.
+
 ## What changed in 2.37.0
 - **Value over time exports a PNG.** It has the league art and crest, award cards (biggest climb, best trader, waiver hawk, biggest slide), the week-by-week chart with team logos, and the full bridge table.
 - **Pick teams to compare.** Click teams on the chart or the coloured dot in the table to pick them out; the chart dims the rest and the export shows just those teams. "Show the whole league" clears the selection.

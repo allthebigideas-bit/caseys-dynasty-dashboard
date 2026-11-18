@@ -3900,7 +3900,8 @@ function valueTimePoster() {
   const sg = (v) => `${v > 0 ? '+' : v < 0 ? '−' : ''}${k(Math.abs(v))}`;
   const tone = (v) => (v > 250 ? '#5fe39a' : v < -250 ? '#ff8a8a' : '#c4b3e6');
   const R = (t) => V.rows[t.rid];
-  const rows = [...shown].sort((a, b) => R(b).end - R(a).end);
+  const sk = ['start', 'trades', 'draft', 'added', 'lost', 'residual', 'end', 'change'].includes(ui.sort) && (ui.sort !== 'draft' || from !== 'draft') ? ui.sort : 'end';
+  const rows = [...shown].sort((a, b) => (sk === 'lost' ? R(a)[sk] - R(b)[sk] : R(b)[sk] - R(a)[sk]));
   const by = (f) => [...shown].sort((a, b) => f(R(b)) - f(R(a)));
   const awards = shown.length >= 4 ? [
     { label: 'Biggest climb', t: by((r) => r.change)[0], stat: (r) => `${sg(r.change)} (${r.start ? Math.round((r.change / r.start) * 100) : 0}%)` },
@@ -3950,7 +3951,20 @@ function valueTimePoster() {
           change: { text: `${sg(r.change)}${r.start ? ` (${r.change >= 0 ? '+' : ''}${Math.round((r.change / r.start) * 100)}%)` : ''}`, color: tone(r.change), bold: true },
         },
       };
-    }),
+    }).concat([(() => {
+      const T = (key) => shown.reduce((a, t) => a + R(t)[key], 0);
+      const st = T('start'), ch = T('change');
+      return { total: true, name: sel.length ? `Total, ${shown.length} teams` : 'League', cells: {
+        start: { text: k(st), color: '#e9dcff', bold: true },
+        trades: { text: sg(T('trades')), color: tone(T('trades')), bold: true },
+        draft: { text: sg(T('draft')), color: tone(T('draft')), bold: true },
+        added: { text: `+${k(T('added'))}`, color: '#5fe39a', bold: true },
+        lost: { text: `−${k(T('lost'))}`, color: '#ff8a8a', bold: true },
+        residual: { text: sg(T('residual')), color: tone(T('residual')), bold: true },
+        end: { text: k(T('end')), bold: true },
+        change: { text: `${sg(ch)}${st ? ` (${ch >= 0 ? '+' : ''}${Math.round((ch / st) * 100)}%)` : ''}`, color: tone(ch), bold: true },
+      } };
+    })()]),
     notes: [
       `${startName} + Trades${fromSeason ? ' + Rookie drafts' : ''} + Waivers added − Value lost + Appreciation = Value today.`,
       'Trades are Trade summary\'s "Net then" figures. Waivers and drops are valued the week they happened; Appreciation is how every asset moved while the team held it.',
