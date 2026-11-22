@@ -50,6 +50,7 @@ If Settings says KeepTradeCut is unavailable, open keeptradecut.com once in this
 
 The sidebar on the left has every page. The top bar has search (players and managers; Ctrl/Cmd+K), the alert history, offers waiting on you, and a **Waivers armed** switch.
 
+- **Game day:** this week's matchup scored live, laid out like a Yahoo matchup page. Your starters face your opponent's slot by slot: stat line, points, Sleeper projection with the live projection under it, and FantasyPros' rank and projection. Players in games being played now are shaded green, with the quarter, clock and score. The header has both scores, original and live projected totals, players remaining and the win chance. The arrows step through weeks; "Around the league" switches to any other matchup. It refreshes every 30 seconds while games are on.
 - **Overview:** playoff odds, offers waiting, and weeks to the deadline. Also on this page:
   - The top item to act on.
   - Two players coming into their peak.
@@ -94,6 +95,10 @@ The sidebar on the left has every page. The top bar has search (players and mana
 ## What changed
 
 Newest first. Casey's Dynasty Dashboard started at 2.23.0 as the team version of Waiver Vulture; the older entries are Waiver Vulture's history.
+
+### 2.44.0
+
+- **Game day page.** A live, Yahoo-style view of this week's matchup: both lineups side by side with stat lines, points, projections, game clocks and the win chance, refreshed every 30 seconds while games are on. Game clocks come from ESPN's public scoreboard, so the extension now also asks for access to site.api.espn.com.
 
 ### 2.43.0
 
