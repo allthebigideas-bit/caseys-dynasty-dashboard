@@ -15,6 +15,8 @@ import { ownTeam } from '../lib/ownteam.js';
 import { quickRefresh } from '../lib/alerts.js';
 import { gqlTrades, gqlLeaguePlayers } from '../lib/sleeper.js';
 import { fetchLeague, compareLeagues } from '../lib/compare.js';
+import { buildGameDay, loadGameDay, pairings, standings, weekSpan, anyLive } from '../lib/gameday.js';
+import { gameDayHtml } from './gameday-view.js';
 
 const sync = createSync({ sleeper: networkSleeper, store });
 
@@ -27,6 +29,7 @@ const S = {
   lab: { a: null, b: null, picked: new Set() },
   ui: { season: { key: 'playoffOdds', dir: -1 }, wk: { min: 0.1, pos: 'ALL' }, form: { rid: null, pos: 'ALL', sort: 'form' }, inc: { rid: 'all', from: '', to: '', status: 'all', sort: 'date', open: null }, boardEdit: false, sum: { key: 'posture', dir: -1 }, history: false, open: { managers: false, trades: true }, q: '', results: [], drawer: null, wv: { sort: 'value', pos: 'ALL', msg: '' }, rising: { pos: 'ALL', need: false, owner: 'all', sort: 'next3' }, posr: { mode: 'dyn', sort: 'avg', focus: 'RB', owner: 'all' }, cmp: { uid: null, lid: null, pos: 'ALL' }, dealTab: {}, tree: { zoom: 'fit', side: 'both', orient: 'auto', autoOrient: null, stacked: false, for: null, view: 'tree', kind: 'all', mgr: 'all', asset: 'all', sort: 'gen', depth: '0', open: {}, closed: {} }, lop: { key: 'gap', dir: -1 }, brs: { key: 'br', dir: -1 }, feedOpen: false },
   trending: null,
+  gd: { week: null, rid: null, forMe: null, data: {}, busy: false, err: null, timer: null },
   pick: { q: '', leagues: null, leagueId: '', teams: null, teamUserId: '', busy: false, error: '', auto: false },
 };
 
@@ -47,6 +50,7 @@ const ICONS = {
   moon: '<path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"/>',
   contrast: '<circle cx="12" cy="12" r="9"/><path d="M12 3v18a9 9 0 0 0 0-18z" fill="currentColor"/>',
   home: '<path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/>',
+  live: '<path d="M2 12h4l3-8 5 16 3-8h5"/>',
   users: '<circle cx="9" cy="8" r="3.2"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6"/><path d="M16 4.5a3 3 0 0 1 0 6M21 20c0-2.6-1.6-4.8-4-5.6"/>',
   swap: '<path d="M7 4 3 8l4 4"/><path d="M3 8h14"/><path d="m17 20 4-4-4-4"/><path d="M21 16H7"/>',
   flag: '<path d="M5 21V4"/><path d="M5 4h11l-2 4 2 4H5"/>',
@@ -325,7 +329,7 @@ function route() {
   const h = (location.hash || '#overview').slice(1).split('/');
   return { page: h[0] || 'overview', id: h[1] || null };
 }
-const PAGE_NAMES = { valuetime: 'Value over time', ledger: 'Team ledger', season: 'Season table', form: 'Roster form', block: 'My trade block', draft: 'Rookie draft', overview: 'Overview', summary: 'Trade summary', managers: 'Managers', manager: 'Managers', trades: 'Trades', demand: 'Demand', rising: 'Rising players', positions: 'Positional ranks', startsit: 'Start/Sit', waivers: 'Waivers', picks: 'Picks', compare: 'League compare', tree: 'Trade trees', lopsided: 'Most lopsided trades', branches: 'Most branching trades', market: 'Market', settings: 'Settings' };
+const PAGE_NAMES = { gameday: 'Game day', valuetime: 'Value over time', ledger: 'Team ledger', season: 'Season table', form: 'Roster form', block: 'My trade block', draft: 'Rookie draft', overview: 'Overview', summary: 'Trade summary', managers: 'Managers', manager: 'Managers', trades: 'Trades', demand: 'Demand', rising: 'Rising players', positions: 'Positional ranks', startsit: 'Start/Sit', waivers: 'Waivers', picks: 'Picks', compare: 'League compare', tree: 'Trade trees', lopsided: 'Most lopsided trades', branches: 'Most branching trades', market: 'Market', settings: 'Settings' };
 
 
 // Sidebar league switcher: every league the login is in this season. Picking one
@@ -372,6 +376,7 @@ function renderSide() {
     ${switcher(L, me)}
     <div class="nav-h">Main</div>
     <nav class="nav">
+      ${item('#gameday', 'live', 'Game day', r.page === 'gameday', anyLive((S.gd.data[S.gd.week] || {}).games || {}) ? '<span class="badge" style="background:var(--green)">live</span>' : '')}
       ${item('#season', 'trophy', 'Season table', r.page === 'season')}
       ${item('#overview', 'home', 'Overview', r.page === 'overview')}
       ${item('#valuetime', 'chart', 'Value over time', r.page === 'valuetime' || r.page === 'ledger')}
@@ -471,6 +476,7 @@ function render() {
       case 'positions': html = viewPositions(); break;
       case 'form': html = viewForm(); break;
       case 'startsit': html = viewStartSit(); break;
+      case 'gameday': html = viewGameDay(); break;
       case 'waivers': html = viewWaivers(); break;
       case 'picks': html = viewPicks(); break;
       case 'compare': html = viewCompare(); break;
@@ -2593,6 +2599,76 @@ function viewStartSit() {
     </div>`;
 }
 
+// ---- game day (live matchup, Yahoo layout) -------------------------------------------------------
+
+const GD_LIVE_MS = 30e3, GD_IDLE_MS = 5 * 60e3;
+
+function nflWeek() { return Number((S.raw && S.raw.nfl && S.raw.nfl.week) || 1); }
+
+function viewGameDay() {
+  const g = S.gd;
+  const m = S.model;
+  if (g.forMe !== m.me) { g.forMe = m.me; g.rid = m.me; }
+  if (g.week == null) g.week = Math.min(18, Math.max(1, nflWeek()));
+  const cur = nflWeek();
+  const d = g.data[g.week];
+  if (!g.busy && (!d || Date.now() - d.at > 20e3)) { clearTimeout(g.timer); g.timer = setTimeout(gdLoad, 0); }
+  const L = S.raw.league;
+  const matchups = (d && d.matchups.length ? d.matchups : (S.raw.matchups || {})[g.week]) || [];
+  const isCur = g.week === cur;
+  const gd = buildGameDay({
+    league: L, matchups, rid: g.rid, dict: S.dict,
+    proj: (d && d.proj) || (isCur ? S.aux.proj : null) || {},
+    fpBySid: isCur ? S.aux.fpBySid || {} : {},
+    stats: d ? d.stats : {}, games: d ? d.games : {},
+  });
+  const rank = standings(m.teams);
+  const who = (rid) => {
+    const t = team(rid);
+    if (!t) return { name: tname(rid), sub: '', record: '', avatar: teamAvatar(null) };
+    return { name: t.name, sub: t.teamName && t.teamName !== t.name ? t.teamName : '', record: `${t.w}-${t.l}-${t.t} | ${ordinal(rank[rid])}`, avatar: teamAvatar(t) };
+  };
+  const strip = pairings(matchups).filter((p) => p.length === 2).map(([x, y]) => ({
+    on: x.roster_id === g.rid || y.roster_id === g.rid,
+    a: { rid: x.roster_id, name: tname(x.roster_id), pts: Number(x.points || 0) },
+    b: { rid: y.roster_id, name: tname(y.roster_id), pts: Number(y.points || 0) },
+  }));
+  const games = d ? d.games : {};
+  return gameDayHtml({
+    gd, week: g.week, span: weekSpan(games), strip,
+    A: gd ? who(gd.a.rid) : null, B: gd && gd.b ? who(gd.b.rid) : null,
+    updated: d ? new Date(d.at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', second: '2-digit' }) : '',
+    live: anyLive(games), error: g.err, busy: g.busy,
+    canPrev: g.week > 1, canNext: g.week < Math.min(18, cur + 1),
+  }, { esc, headshot });
+}
+
+// Fetch the shown week's matchups, stat lines and game clocks; poll every 30 s
+// while a game is on and every 5 min otherwise, only while the page is open.
+async function gdLoad() {
+  const g = S.gd;
+  clearTimeout(g.timer); g.timer = null;
+  if (route().page !== 'gameday' || !S.raw || g.busy) return;
+  if (document.hidden) { g.timer = setTimeout(gdLoad, GD_LIVE_MS); return; }
+  const week = g.week;
+  const prev = g.data[week];
+  g.busy = true;
+  try {
+    const d = await loadGameDay({ sl: networkSleeper, leagueId: S.raw.league.league_id, season: S.raw.nfl.season, week, needProj: !(prev && prev.proj) });
+    if (!d.proj && prev) d.proj = prev.proj;
+    if (!d.matchups.length && prev) d.matchups = prev.matchups;
+    g.data[week] = d;
+    g.err = d.boardError ? `Game clocks unavailable right now (${d.boardError}). Points still update.` : null;
+  } catch (e) {
+    g.err = `Couldn't update from Sleeper: ${e.message}. Showing the last numbers.`;
+  }
+  g.busy = false;
+  if (route().page !== 'gameday') return;
+  const d = g.data[g.week]; // the week may have changed while this one loaded
+  g.timer = setTimeout(gdLoad, !d ? 0 : anyLive(d.games) ? GD_LIVE_MS : GD_IDLE_MS);
+  render();
+}
+
 // ---- waivers (overnight claimer) -------------------------------------------------------------
 
 function freeAgents() {
@@ -4490,6 +4566,14 @@ async function pickLeague(leagueId, preferUser = null) {
 }
 
 const actions = {
+  gdWeek(el) {
+    const g = S.gd;
+    g.week = Math.max(1, Math.min(18, g.week + Number(el.dataset.d)));
+    clearTimeout(g.timer); g.timer = null;
+    render();
+  },
+  gdRefresh() { clearTimeout(S.gd.timer); S.gd.timer = null; return gdLoad(); },
+  gdPick(el) { S.gd.rid = Number(el.dataset.rid); render(); window.scrollTo(0, 0); },
   async outMark(el) {
     const y = el.dataset.y, sid = el.dataset.sid, v = el.dataset.v;
     const all = { ...(S.cfg.outList || {}) };
