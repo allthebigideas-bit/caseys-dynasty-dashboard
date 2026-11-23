@@ -102,3 +102,19 @@ test('standings by wins then points for', () => {
 test('week span from game dates', () => {
   assert.match(weekSpan(parseScoreboard(board)), /Nov 2[12]/);
 });
+
+test('live standings: this week projected in, Max PF on scored and projected points', async () => {
+  const { liveStandings } = await import('../lib/gameday.js');
+  const games = parseScoreboard(board);
+  const teams = [{ rid: 1, name: 'A', w: 5, l: 5, t: 0, pf: 1000, maxPf: 1200 }, { rid: 2, name: 'B', w: 6, l: 4, t: 0, pf: 990, maxPf: 1100 }];
+  const rows = liveStandings({ teams, league, matchups, dict, proj, games });
+  const a = rows.find((r) => r.rid === 1), b = rows.find((r) => r.rid === 2);
+  assert.equal(a.wk.res, 'W');
+  assert.equal(`${a.projW}-${a.projL}`, '6-5');
+  assert.equal(`${b.projW}-${b.projL}`, '6-5');
+  assert.equal(a.projRank, 1, 'tied on record, A has more projected PF');
+  assert.equal(b.nowRank, 1);
+  assert.ok(a.wkMax >= 40, 'best lineup on points so far is at least what was started');
+  assert.ok(a.wkMaxProj >= a.wk.proj - 0.01, 'best projected lineup is at least the started one');
+  assert.equal(a.maxNow, Math.round((1200 + a.wkMax) * 100) / 100);
+});

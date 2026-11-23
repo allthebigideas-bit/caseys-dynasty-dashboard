@@ -93,7 +93,52 @@ export function gameDayHtml(v, h) {
     </table></div>
     <p class="muted small gd-foot">Fan Pts are Sleeper's, scored with your league's settings. Proj is Sleeper's projection scored the same way; the figure under it is the live projection: points so far plus the rest of the projection for the time left in the game. ECR and FP Proj are FantasyPros' weekly consensus. Green rows are in games being played now.</p></div>`;
 
-  return `<div class="gd">${top}${head}${table}${stripHtml(strip, esc)}</div>`;
+  return `<div class="gd">${top}${head}${table}${stripHtml(strip, esc)}${standingsHtml(v.standings, h)}</div>`;
+}
+
+// Standings if this week ended on the live projections, with live Max PF.
+const SORTS = {
+  proj: (r) => (r.projW + r.projT / 2) * 1e5 + r.projPf,
+  now: (r) => -r.nowRank,
+  projPf: (r) => r.projPf,
+  maxNow: (r) => r.maxNow,
+  maxProj: (r) => r.maxProj,
+  wkMaxProj: (r) => r.wkMaxProj,
+};
+
+function standingsHtml(st, { esc }) {
+  if (!st || !st.rows || !st.rows.length) return '';
+  const { key = 'proj', dir = -1, pN = 6, week } = st;
+  const f = SORTS[key] || SORTS.proj;
+  const rows = [...st.rows].sort((a, b) => (f(a) - f(b)) * dir);
+  const cut = key === 'proj' || key === 'now';
+  const th = (k, label, title) => `<th class="num sortable ${key === k ? 'on' : ''}" data-action="gdSort" data-key="${k}" title="${esc(title)}">${label}${key === k ? (dir < 0 ? ' ↓' : ' ↑') : ''}</th>`;
+  const rec = (w, l, t) => `${w}-${l}${t ? `-${t}` : ''}`;
+  const move = (r) => {
+    const d = r.nowRank - r.projRank;
+    return d > 0 ? `<span class="gd-mv up" title="Up ${d} from ${r.nowRank}">▲${d}</span>` : d < 0 ? `<span class="gd-mv down" title="Down ${-d} from ${r.nowRank}">▼${-d}</span>` : '';
+  };
+  const wk = (r) => {
+    if (!r.wk) return '<span class="muted">No game</span>';
+    const pctW = r.wk.win == null ? '' : `<span class="muted"> · ${Math.round(r.wk.win * 100)}%</span>`;
+    return `<b class="gd-res r-${r.wk.res || ''}">${r.wk.res || ''}</b> ${f2(r.wk.proj)}–${r.wk.opp != null ? f2(r.wk.opp) : '–'}${pctW}`;
+  };
+  const body = rows.map((r, i) => `<tr class="${r.rid === st.me ? 'me' : ''} ${cut && i === pN - 1 ? 'cutline' : ''}">
+      <td class="num"><b>${r.projRank}</b> ${move(r)}</td>
+      <td><div class="who">${r.avatar || ''}<div><a href="#manager/${r.rid}">${esc(r.name)}</a>${r.sub ? `<div class="meta">${esc(r.sub)}</div>` : ''}</div></div></td>
+      <td class="num">${rec(r.w, r.l, r.t)} <span class="muted small">(${r.nowRank})</span></td>
+      <td class="gd-wk">${wk(r)}</td>
+      <td class="num"><b>${rec(r.projW, r.projL, r.projT)}</b></td>
+      <td class="num">${f2(r.projPf)}</td>
+      <td class="num grp">${f2(r.maxNow)}<div class="small muted">+${f2(r.wkMax)} this wk</div></td>
+      <td class="num"><b>${f2(r.maxProj)}</b><div class="small muted">+${f2(r.wkMaxProj)} this wk</div></td>
+    </tr>`).join('');
+  return `<div class="card gd-stand"><div class="sec-h"><h3 style="margin:0">Standings if week ${week} ended on projections</h3><span class="muted small">Top ${pN} make the playoffs · click a heading to sort</span></div>
+    <div class="scroll"><table class="t season gd-st">
+      <thead><tr><th class="num" title="Projected standing: record after this week, then points for">#</th><th>Team</th>${th('now', 'Record', 'Record now (standing now in brackets)')}<th>This week (proj.)</th>${th('proj', 'Proj. record', 'Record if every matchup ends as projected now')}
+        ${th('projPf', 'Proj. PF', 'Points for so far plus this week\'s live projection')}${th('maxNow', 'Max PF', 'Best possible lineup every week, counting this week\'s points scored so far')}${th('maxProj', 'Proj. max PF', 'Max PF with this week\'s best lineup on live projections: points so far plus what is left of each player\'s projection')}</tr></thead>
+      <tbody>${body}</tbody></table></div>
+    <p class="faint small" style="margin:10px 0 0">Max PF before this week is Sleeper's. This week's part is the best lineup your roster could have started, from the same live numbers as the matchup above. Ties in record are split by projected PF.</p></div>`;
 }
 
 // Yahoo-style "J. Williams"; "C.J. Stroud" and team defences stay as they are.
