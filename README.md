@@ -50,7 +50,7 @@ If Settings says KeepTradeCut is unavailable, open keeptradecut.com once in this
 
 The sidebar on the left has every page. The top bar has search (players and managers; Ctrl/Cmd+K), the alert history, offers waiting on you, and a **Waivers armed** switch.
 
-- **Game day:** this week's matchup scored live, laid out like a Yahoo matchup page. Your starters face your opponent's slot by slot: stat line, points, Sleeper projection with the live projection under it, and FantasyPros' rank and projection. Players in games being played now are shaded green, with the quarter, clock and score. The header has both scores, original and live projected totals, players remaining and the win chance. The arrows step through weeks; "Around the league" switches to any other matchup. It refreshes every 30 seconds while games are on.
+- **Game day:** this week's matchup scored live, laid out like a Yahoo matchup page. Your starters face your opponent's slot by slot: stat line, points, Sleeper projection with the live projection under it, and FantasyPros' rank and projection. Players in games being played now are shaded green, with the quarter, clock and score. The header has both scores, original and live projected totals, players remaining and the win chance. The arrows step through weeks; "Around the league" switches to any other matchup. At the bottom, a standings table shows every team as if the week ended on the live projections: this week's projected result and win chance, projected record and PF, Max PF counting this week's best possible lineup so far, and projected Max PF counting this week's best lineup on live projections. Click a heading to sort. It refreshes every 30 seconds while games are on.
 - **Overview:** playoff odds, offers waiting, and weeks to the deadline. Also on this page:
   - The top item to act on.
   - Two players coming into their peak.
@@ -95,6 +95,10 @@ The sidebar on the left has every page. The top bar has search (players and mana
 ## What changed
 
 Newest first. Casey's Dynasty Dashboard started at 2.23.0 as the team version of Waiver Vulture; the older entries are Waiver Vulture's history.
+
+### 2.45.0
+
+- **Game day: live standings with Max PF.** A table at the bottom of Game day ranks every team as if this week ended on the live projections, with projected record, projected PF, Max PF (counting this week's best possible lineup so far) and projected Max PF (this week's best lineup on live projections). Arrows show who moves up or down; the dashed line is the playoff cut.
 
 ### 2.44.0
 

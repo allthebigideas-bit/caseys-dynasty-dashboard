@@ -15,7 +15,7 @@ import { ownTeam } from '../lib/ownteam.js';
 import { quickRefresh } from '../lib/alerts.js';
 import { gqlTrades, gqlLeaguePlayers } from '../lib/sleeper.js';
 import { fetchLeague, compareLeagues } from '../lib/compare.js';
-import { buildGameDay, loadGameDay, pairings, standings, weekSpan, anyLive } from '../lib/gameday.js';
+import { buildGameDay, loadGameDay, pairings, standings, weekSpan, anyLive, liveStandings } from '../lib/gameday.js';
 import { gameDayHtml } from './gameday-view.js';
 
 const sync = createSync({ sleeper: networkSleeper, store });
@@ -29,7 +29,7 @@ const S = {
   lab: { a: null, b: null, picked: new Set() },
   ui: { season: { key: 'playoffOdds', dir: -1 }, wk: { min: 0.1, pos: 'ALL' }, form: { rid: null, pos: 'ALL', sort: 'form' }, inc: { rid: 'all', from: '', to: '', status: 'all', sort: 'date', open: null }, boardEdit: false, sum: { key: 'posture', dir: -1 }, history: false, open: { managers: false, trades: true }, q: '', results: [], drawer: null, wv: { sort: 'value', pos: 'ALL', msg: '' }, rising: { pos: 'ALL', need: false, owner: 'all', sort: 'next3' }, posr: { mode: 'dyn', sort: 'avg', focus: 'RB', owner: 'all' }, cmp: { uid: null, lid: null, pos: 'ALL' }, dealTab: {}, tree: { zoom: 'fit', side: 'both', orient: 'auto', autoOrient: null, stacked: false, for: null, view: 'tree', kind: 'all', mgr: 'all', asset: 'all', sort: 'gen', depth: '0', open: {}, closed: {} }, lop: { key: 'gap', dir: -1 }, brs: { key: 'br', dir: -1 }, feedOpen: false },
   trending: null,
-  gd: { week: null, rid: null, forMe: null, data: {}, busy: false, err: null, timer: null },
+  gd: { week: null, rid: null, forMe: null, data: {}, busy: false, err: null, timer: null, sort: 'proj', dir: -1 },
   pick: { q: '', leagues: null, leagueId: '', teams: null, teamUserId: '', busy: false, error: '', auto: false },
 };
 
@@ -2634,7 +2634,19 @@ function viewGameDay() {
     b: { rid: y.roster_id, name: tname(y.roster_id), pts: Number(y.points || 0) },
   }));
   const games = d ? d.games : {};
+  // Standings table: the current week only (earlier weeks are already in the season numbers).
+  let stand = null;
+  if (isCur && matchups.length) {
+    const rows = liveStandings({
+      teams: m.teams.map((t) => ({ rid: t.rid, name: t.name, w: t.w, l: t.l, t: t.t || 0, pf: t.pf, maxPf: t.maxPf || 0 })),
+      league: L, matchups, dict: S.dict, proj: (d && d.proj) || S.aux.proj || {}, fpBySid: S.aux.fpBySid || {},
+      stats: d ? d.stats : {}, games,
+    });
+    for (const r of rows) { const t = team(r.rid); r.avatar = teamAvatar(t); r.sub = t && t.teamName && t.teamName !== t.name ? t.teamName : ''; }
+    stand = { rows, key: g.sort, dir: g.dir, pN: m.league.playoffTeams || 6, me: m.me, week: g.week };
+  }
   return gameDayHtml({
+    standings: stand,
     gd, week: g.week, span: weekSpan(games), strip,
     A: gd ? who(gd.a.rid) : null, B: gd && gd.b ? who(gd.b.rid) : null,
     updated: d ? new Date(d.at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', second: '2-digit' }) : '',
@@ -4574,6 +4586,11 @@ const actions = {
   },
   gdRefresh() { clearTimeout(S.gd.timer); S.gd.timer = null; return gdLoad(); },
   gdPick(el) { S.gd.rid = Number(el.dataset.rid); render(); window.scrollTo(0, 0); },
+  gdSort(el) {
+    const g = S.gd, k = el.dataset.key;
+    if (g.sort === k) g.dir = -g.dir; else { g.sort = k; g.dir = -1; }
+    render();
+  },
   async outMark(el) {
     const y = el.dataset.y, sid = el.dataset.sid, v = el.dataset.v;
     const all = { ...(S.cfg.outList || {}) };
